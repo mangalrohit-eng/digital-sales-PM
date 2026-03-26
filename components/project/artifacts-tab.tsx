@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import {
   ChevronRight,
   ChevronDown,
@@ -25,6 +24,8 @@ import {
   Clock,
   Circle,
   AlertTriangle,
+  Sparkles,
+  Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "@/lib/date-utils"
@@ -34,13 +35,6 @@ const TYPE_ICONS: Record<ArtifactType, React.ElementType> = {
   epic: Layers,
   story: BookOpen,
   test_case: TestTube2,
-}
-
-const TYPE_INDENT: Record<ArtifactType, string> = {
-  brd: "ml-0",
-  epic: "ml-5",
-  story: "ml-10",
-  test_case: "ml-15",
 }
 
 interface ArtifactsTabProps {
@@ -161,6 +155,8 @@ function ArtifactDetail({
   const [editContent, setEditContent] = useState(artifact.content)
   const [commentText, setCommentText] = useState("")
   const [showComments, setShowComments] = useState(false)
+  const [refineFeedback, setRefineFeedback] = useState("")
+  const [refining, setRefining] = useState(false)
 
   const canApprove = userRole === "admin"
   const canSubmitForReview = artifact.status === "draft"
@@ -201,8 +197,46 @@ function ArtifactDetail({
     toast.success("Artifact deleted")
   }
 
+  const handleRefine = async () => {
+    if (!refineFeedback.trim()) {
+      toast.error("Describe what to change")
+      return
+    }
+    setRefining(true)
+    try {
+      const res = await fetch("/api/ai/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: artifact.title,
+          type: artifact.type,
+          content: artifact.content,
+          feedback: refineFeedback.trim(),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error ?? "Refinement failed")
+      }
+      const next = data.content as string
+      if (!next?.trim()) throw new Error("Empty response")
+      updateArtifact(artifact.id, { content: next.trim() })
+      addComment(artifact.id, {
+        author: userName,
+        authorRole: userRole,
+        text: `[AI refinement] ${refineFeedback.trim()}`,
+      })
+      setRefineFeedback("")
+      toast.success("Artifact updated from your feedback")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Refinement failed")
+    } finally {
+      setRefining(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 min-w-0">
       {/* Artifact header */}
       <div className="flex items-start justify-between gap-3 p-5 border-b border-border shrink-0">
         <div className="min-w-0 flex-1">
@@ -255,8 +289,8 @@ function ArtifactDetail({
         </div>
       </div>
 
-      {/* Content */}
-      <ScrollArea className="flex-1 px-5 py-4">
+      {/* Scrollable body: flex min-h-0 so preview scrolls inside the pane */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4">
         {editing ? (
           <div className="space-y-3">
             <Textarea
@@ -281,73 +315,112 @@ function ArtifactDetail({
             </div>
           </div>
         ) : (
-          <div
-            className="artifact-content"
-            dangerouslySetInnerHTML={{
-              __html: renderMarkdown(artifact.content),
-            }}
-          />
-        )}
+          <>
+            <div
+              className="artifact-content artifact-preview"
+              dangerouslySetInnerHTML={{
+                __html: renderMarkdown(artifact.content),
+              }}
+            />
 
-        {/* Approval actions */}
-        {!editing && (
-          <div className="mt-6 pt-5 border-t border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-              Workflow
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {canSubmitForReview && (
+            {!editing && (
+              <div className="mt-8 pt-6 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  Refine with AI
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Describe edits, tone, missing sections, or stakeholder asks. GPT-4o rewrites the full artifact; a note is added to comments.
+                </p>
+                <Textarea
+                  value={refineFeedback}
+                  onChange={(e) => setRefineFeedback(e.target.value)}
+                  placeholder="e.g. Add WCAG acceptance criteria, shorten executive summary, align KPIs with Q3 targets…"
+                  className="min-h-[88px] text-sm resize-y mb-3"
+                  disabled={refining}
+                />
                 <Button
+                  type="button"
                   size="sm"
-                  variant="outline"
-                  className="h-8 text-xs gap-1.5"
-                  onClick={() => handleStatusChange("in_review")}
+                  className="gap-1.5 h-8 text-xs"
+                  onClick={handleRefine}
+                  disabled={refining || !refineFeedback.trim()}
                 >
-                  <Clock className="w-3.5 h-3.5" />
-                  Submit for review
+                  {refining ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Refining…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Apply refinement
+                    </>
+                  )}
                 </Button>
-              )}
-              {canApproveArtifact && (
-                <Button
-                  size="sm"
-                  className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => handleStatusChange("approved")}
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Approve
-                </Button>
-              )}
-              {canRequestChanges && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50"
-                  onClick={() => handleStatusChange("draft")}
-                >
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  Request changes
-                </Button>
-              )}
-              {artifact.status === "approved" && canApprove && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs gap-1.5"
-                  onClick={() => handleStatusChange("in_review")}
-                >
-                  Reopen for review
-                </Button>
-              )}
-            </div>
-            {!canApprove && artifact.status === "in_review" && (
-              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
-                <Clock className="w-3 h-3" />
-                Awaiting Admin approval
-              </p>
+              </div>
             )}
-          </div>
+
+            {!editing && (
+              <div className="mt-8 pt-6 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Review workflow
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {canSubmitForReview && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs gap-1.5"
+                      onClick={() => handleStatusChange("in_review")}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      Submit for review
+                    </Button>
+                  )}
+                  {canApproveArtifact && (
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => handleStatusChange("approved")}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Approve
+                    </Button>
+                  )}
+                  {canRequestChanges && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50"
+                      onClick={() => handleStatusChange("draft")}
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Request changes
+                    </Button>
+                  )}
+                  {artifact.status === "approved" && canApprove && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs gap-1.5"
+                      onClick={() => handleStatusChange("in_review")}
+                    >
+                      Reopen for review
+                    </Button>
+                  )}
+                </div>
+                {!canApprove && artifact.status === "in_review" && (
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                    <Clock className="w-3 h-3" />
+                    Awaiting Admin approval
+                  </p>
+                )}
+              </div>
+            )}
+          </>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Comments */}
       <div className="border-t border-border shrink-0">
@@ -479,7 +552,7 @@ export function ArtifactsTab({
   return (
     <div className="flex h-[calc(100vh-11rem)] rounded-xl border border-border overflow-hidden bg-background">
       {/* Tree sidebar */}
-      <div className="w-72 border-r border-border flex flex-col shrink-0">
+      <div className="w-72 border-r border-border flex flex-col shrink-0 min-h-0">
         <div className="px-4 py-3 border-b border-border bg-muted/30">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Artifact tree
@@ -488,7 +561,7 @@ export function ArtifactsTab({
             {artifacts.length} artifact{artifacts.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <ScrollArea className="flex-1 py-2">
+        <ScrollArea className="flex-1 min-h-0 py-2">
           <div className="px-2">
             {rootArtifacts.map((artifact) => (
               <ArtifactNode
@@ -522,7 +595,7 @@ export function ArtifactsTab({
       </div>
 
       {/* Detail panel */}
-      <div className="flex-1 min-w-0">
+      <div className="flex flex-1 min-w-0 min-h-0 flex-col">
         {selectedArtifact ? (
           <ArtifactDetail
             key={selectedArtifact.id}

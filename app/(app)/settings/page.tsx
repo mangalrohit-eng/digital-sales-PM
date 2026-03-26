@@ -220,13 +220,13 @@ export default function SettingsPage() {
           <div className="space-y-3">
             {[
               {
-                email: "admin@charter.com",
+                email: "admin@demo.app",
                 role: "Admin",
                 title: "Director, Digital Sales",
                 capabilities: ["Approve artifacts", "Push to Jira", "Full access"],
               },
               {
-                email: "analyst@charter.com",
+                email: "analyst@demo.app",
                 role: "Analyst",
                 title: "CRO Analyst",
                 capabilities: ["Brainstorm", "Generate artifacts", "Submit for review"],
@@ -268,7 +268,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground shrink-0">
-                  Password: charter123
+                  Password: ACN2026
                 </p>
               </div>
             ))}

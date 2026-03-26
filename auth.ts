@@ -4,16 +4,16 @@ import Credentials from "next-auth/providers/credentials"
 const DEMO_USERS = [
   {
     id: "1",
-    email: "admin@charter.com",
-    password: "charter123",
+    email: "admin@demo.app",
+    password: "ACN2026",
     name: "Alex Morgan",
     role: "admin",
     title: "Director, Digital Sales",
   },
   {
     id: "2",
-    email: "analyst@charter.com",
-    password: "charter123",
+    email: "analyst@demo.app",
+    password: "ACN2026",
     name: "Jordan Lee",
     role: "analyst",
     title: "CRO Analyst",

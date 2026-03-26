@@ -16,6 +16,9 @@ import {
   User,
   Target,
   Edit3,
+  MessageSquare,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react"
 import { formatDate } from "@/lib/date-utils"
 import { useState } from "react"
@@ -26,9 +29,11 @@ import { toast } from "sonner"
 interface OverviewTabProps {
   project: Project
   artifacts: Artifact[]
+  /** Switch project workspace tab (URL `?tab=`). */
+  onNavigate?: (tab: string) => void
 }
 
-export function OverviewTab({ project, artifacts }: OverviewTabProps) {
+export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps) {
   const { updateProject } = useAppStore()
   const [editingContext, setEditingContext] = useState(false)
   const [contextValue, setContextValue] = useState(project.cro_context)
@@ -91,6 +96,53 @@ export function OverviewTab({ project, artifacts }: OverviewTabProps) {
           Created {formatDate(project.createdAt)}
         </span>
       </div>
+
+      {onNavigate && (
+        <Card className="border-primary/20 bg-gradient-to-br from-card via-card to-primary/[0.04] shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+              Core workflow
+            </p>
+            <p className="text-sm text-foreground/90 mb-4">
+              Brainstorm with AI, generate BRD → stories → tests, refine in Artifacts, then export to Jira.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => onNavigate("brainstorm")}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                Brainstorm
+                <ArrowRight className="w-3 h-3 opacity-50" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => onNavigate("generate")}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Generate
+                <ArrowRight className="w-3 h-3 opacity-50" />
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => onNavigate("artifacts")}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Artifacts
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Approval progress */}
       <Card>
