@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LogOut, Settings, ChevronRight, Menu } from "lucide-react"
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand"
 
 interface HeaderProps {
   userName: string
@@ -61,12 +62,12 @@ export function Header({
             className="h-7 w-auto shrink-0 object-contain"
             aria-hidden
           />
-          <span className="text-[13px] font-semibold text-foreground/50 tracking-tight">
-            Charter
+          <span className="text-[13px] font-semibold text-foreground/90 tracking-tight">
+            {APP_NAME}
           </span>
           <ChevronRight className="hidden shrink-0 text-border sm:block w-3.5 h-3.5" />
-          <span className="truncate text-[13px] font-semibold text-foreground/80 tracking-tight">
-            Spectrum Digital Sales
+          <span className="hidden truncate text-[13px] font-medium text-foreground/55 tracking-tight sm:inline max-w-[min(100%,14rem)]">
+            {APP_TAGLINE}
           </span>
         </div>
       </div>

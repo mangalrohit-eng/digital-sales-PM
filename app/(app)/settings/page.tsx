@@ -94,7 +94,7 @@ export default function SettingsPage() {
             <div>
               <CardTitle className="text-base">OpenAI API Key</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Required for AI brainstorming and artifact generation
+                Required for all workbench agents (Sage, Morgan, Atlas, …)
               </CardDescription>
             </div>
           </div>
@@ -240,13 +240,17 @@ export default function SettingsPage() {
                 email: "admin@demo.app",
                 role: "Admin",
                 title: "Director, Digital Sales",
-                capabilities: ["Approve artifacts", "Export to Jira", "Full access"],
+                capabilities: [
+                  "Approve artifacts",
+                  "Run Courier → Jira",
+                  "Full access",
+                ],
               },
               {
                 email: "analyst@demo.app",
                 role: "Analyst",
                 title: "Digital Sales Analyst",
-                capabilities: ["Brainstorm", "Generate artifacts", "Submit for review"],
+                capabilities: ["Sage", "Agent pipeline", "Submit for review"],
               },
             ].map((account) => (
               <div

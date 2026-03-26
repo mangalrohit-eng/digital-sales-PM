@@ -117,7 +117,7 @@ export default function ProjectPage({ params }: PageProps) {
     },
     {
       value: "brainstorm",
-      label: "Brainstorm",
+      label: "Sage",
       icon: MessageSquare,
       badge: null,
       workflow: true,
@@ -125,7 +125,7 @@ export default function ProjectPage({ params }: PageProps) {
     },
     {
       value: "generate",
-      label: "Generate",
+      label: "Agents",
       icon: Sparkles,
       badge: null,
       workflow: true,
@@ -206,72 +206,81 @@ export default function ProjectPage({ params }: PageProps) {
               Demo workflow
             </p>
             <p className="text-base sm:text-lg font-semibold text-foreground mt-1.5 leading-snug">
-              Brainstorm → Generate → Artifacts → Export (Jira, Figma, Confluence)
+              Sage → agent pipeline → Quill → Courier (Jira, Figma, Confluence)
             </p>
             <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-              Use the steps below in order; this is the main path reviewers follow in the demo.
+              Named agents run discovery, generation, refinement, and delivery.
+              Follow the tabs in order for the main demo path.
             </p>
-            <div className="flex flex-wrap items-center gap-2 mt-4 text-xs font-medium text-muted-foreground">
-              <span>Quick jump:</span>
-              {(
-                ["brainstorm", "generate", "artifacts", "export"] as const
-              ).map((key, i) => (
-                <span key={key} className="flex items-center gap-1.5">
-                  {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-primary/40" />}
-                  <button
-                    type="button"
-                    onClick={() => setTab(key)}
-                    className={`rounded-full px-3 py-1.5 transition-colors ${
-                      activeTab === key
-                        ? "bg-primary text-primary-foreground shadow-md"
-                        : key === "export"
-                          ? "bg-background/80 border border-border/80 hover:bg-muted"
-                          : i <= workflowStep
-                            ? "bg-primary/15 text-primary hover:bg-primary/25"
-                            : "bg-background/80 border border-border/80 hover:bg-muted"
-                    }`}
-                  >
-                    {key === "brainstorm"
-                      ? "Brainstorm"
-                      : key === "generate"
-                        ? "Generate"
-                        : key === "artifacts"
-                          ? "Artifacts"
-                          : "Export"}
-                  </button>
-                </span>
-              ))}
+            <div className="mt-4 rounded-xl border border-border/70 bg-background/50 px-3 py-2.5 sm:px-4 sm:py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Quick jump
+              </p>
+              <div className="flex flex-wrap items-center gap-y-2 gap-x-1">
+                {(
+                  ["brainstorm", "generate", "artifacts", "export"] as const
+                ).map((key, i) => (
+                  <span key={key} className="inline-flex items-center gap-1">
+                    {i > 0 && (
+                      <ChevronRight
+                        className="mx-0.5 h-3.5 w-3.5 shrink-0 text-primary/35"
+                        aria-hidden
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setTab(key)}
+                      className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        activeTab === key
+                          ? "bg-primary text-primary-foreground shadow-md"
+                          : key === "export"
+                            ? "border border-border/80 bg-background/90 hover:bg-muted"
+                            : i <= workflowStep
+                              ? "bg-primary/15 text-primary hover:bg-primary/25"
+                              : "border border-border/80 bg-background/90 hover:bg-muted"
+                      }`}
+                    >
+                      {key === "brainstorm"
+                        ? "Sage"
+                        : key === "generate"
+                          ? "Agents"
+                          : key === "artifacts"
+                            ? "Artifacts"
+                            : "Export"}
+                    </button>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
           <div className="p-3 sm:p-4">
-            <TabsList className="h-auto w-full flex flex-wrap gap-2 sm:gap-2.5 justify-start rounded-xl bg-background/70 p-2 sm:p-2.5 border border-border/80 shadow-inner">
+            <TabsList className="grid h-auto min-h-0 w-full grid-cols-2 gap-2 rounded-xl border border-border/80 bg-background/70 p-2 shadow-inner sm:grid-cols-3 lg:grid-cols-5 sm:p-2.5 [&_[data-slot=tabs-trigger]]:w-full [&_[data-slot=tabs-trigger]]:max-w-none">
               {tabs.map(({ value, label, icon: Icon, badge, workflow, step }) => (
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className={`group relative flex min-h-[52px] flex-1 basis-[calc(50%-0.25rem)] sm:basis-0 sm:flex-none items-center justify-center gap-2.5 rounded-xl border-2 border-transparent px-4 sm:px-5 py-3 text-[15px] sm:text-base font-semibold transition-all duration-200
-                    data-[state=active]:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/25
-                    text-foreground/80 hover:bg-muted/90 hover:text-foreground
-                    ${workflow ? "sm:min-w-[9.5rem]" : "sm:min-w-[7.5rem]"}`}
+                  className="group box-border flex min-h-[3.25rem] w-full min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-transparent px-2 py-2.5 text-center text-sm font-semibold transition-all duration-200 sm:min-h-[3.5rem] sm:flex-row sm:gap-2 sm:px-3 sm:text-[15px] data-active:border-primary/40 data-active:bg-primary data-active:text-primary-foreground data-active:shadow-lg data-active:shadow-primary/25 data-active:[&_.workflow-step-num]:bg-white/25 data-active:[&_.workflow-step-num]:text-primary-foreground data-active:[&_svg]:opacity-100 data-active:[&_.workflow-tab-badge]:bg-white/20 data-active:[&_.workflow-tab-badge]:text-primary-foreground text-foreground/80 hover:bg-muted/90 hover:text-foreground"
                 >
-                  {step != null && (
-                    <span
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary
-                      group-data-[state=active]:bg-white/25 group-data-[state=active]:text-primary-foreground"
-                    >
-                      {step}
+                  <div className="flex min-w-0 items-center justify-center gap-2 sm:contents">
+                    {step != null && (
+                      <span
+                        className="workflow-step-num flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary sm:h-8 sm:w-8 sm:text-sm"
+                      >
+                        {step}
+                      </span>
+                    )}
+                    <Icon
+                      className="h-4 w-4 shrink-0 opacity-80 sm:h-5 sm:w-5"
+                      strokeWidth={2}
+                    />
+                    <span className="min-w-0 max-w-full text-center leading-tight break-words [overflow-wrap:anywhere] sm:max-w-[7rem] lg:max-w-none">
+                      {label}
                     </span>
-                  )}
-                  <Icon
-                    className="h-5 w-5 shrink-0 opacity-80 group-data-[state=active]:opacity-100"
-                    strokeWidth={2}
-                  />
-                  <span className="whitespace-nowrap">{label}</span>
+                  </div>
                   {badge && (
                     <span
-                      className={`ml-0.5 inline-flex min-h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold
-                      group-data-[state=active]:bg-white/20 group-data-[state=active]:text-primary-foreground
-                      ${value === "export" ? "bg-emerald-100 text-emerald-800" : "bg-muted text-muted-foreground"}`}
+                      className={`workflow-tab-badge mt-0.5 inline-flex min-h-[20px] min-w-[20px] shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold sm:ml-0.5 sm:mt-0
+                      ${value === "export" ? "bg-emerald-100 text-emerald-800 data-active:bg-white/20 data-active:text-primary-foreground" : "bg-muted text-muted-foreground"}`}
                     >
                       {badge}
                     </span>

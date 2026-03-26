@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { cn } from "@/lib/utils"
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand"
 import { APP_NAV_ITEMS } from "@/lib/nav-items"
 import {
   Sheet,
@@ -38,10 +39,10 @@ export function MobileNavSheet({ open, onOpenChange }: MobileNavSheetProps) {
       >
         <SheetHeader className="border-b border-border px-4 py-4 text-left">
           <SheetTitle className="text-base font-semibold">
-            Digital Sales AI
+            {APP_NAME}
           </SheetTitle>
           <p className="text-xs font-normal text-muted-foreground">
-            Charter Communications
+            {APP_TAGLINE}
           </p>
         </SheetHeader>
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">

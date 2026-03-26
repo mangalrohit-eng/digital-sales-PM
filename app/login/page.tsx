@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, Loader2, ArrowRight, ShieldCheck } from "lucide-react"
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand"
 
 const DEMO_PASSWORD = "ACN2026"
 
@@ -52,7 +53,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 py-12">
       <div className="w-full max-w-[380px]">
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-white tracking-tight">
+          <p className="text-lg font-semibold tracking-tight text-primary">
+            {APP_NAME}
+          </p>
+          <p className="text-xs text-zinc-500 mt-0.5">{APP_TAGLINE}</p>
+          <h1 className="text-2xl font-semibold text-white tracking-tight mt-6">
             Sign in
           </h1>
           <p className="text-sm text-zinc-400 mt-1.5">

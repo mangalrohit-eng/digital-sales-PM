@@ -4,6 +4,7 @@ import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Providers } from "@/components/providers"
+import { APP_DESCRIPTION, APP_PAGE_TITLE } from "@/lib/brand"
 
 /* Open Sans aligns with Accenture enterprise typography; public accenture.com may use licensed custom fonts we cannot embed. */
 const openSans = Open_Sans({
@@ -20,9 +21,8 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Digital Sales AI | Charter Communications",
-  description:
-    "AI-powered Digital Sales workflow for Charter Communications — brainstorm, generate artifacts, and export",
+  title: APP_PAGE_TITLE,
+  description: APP_DESCRIPTION,
 }
 
 export default function RootLayout({

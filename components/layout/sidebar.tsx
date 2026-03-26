@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand"
 import { APP_NAV_ITEMS } from "@/lib/nav-items"
 import { Activity, AlertCircle } from "lucide-react"
 
@@ -57,10 +58,10 @@ export function Sidebar() {
         </div>
         <div className="min-w-0">
           <p className="truncate text-[13px] font-semibold leading-tight tracking-tight text-white/90">
-            Digital Sales AI
+            {APP_NAME}
           </p>
           <p className="mt-0.5 truncate text-[10px] text-white/35">
-            Charter Communications
+            {APP_TAGLINE}
           </p>
         </div>
       </div>

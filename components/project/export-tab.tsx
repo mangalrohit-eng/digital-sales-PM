@@ -26,6 +26,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { ARTIFACT_TYPE_LABELS } from "@/lib/types"
+import { AGENT_COURIER } from "@/lib/agents"
+import { extractFigmaHandoffObject } from "@/lib/figma-handoff"
 
 const JIRA_TYPES: ArtifactType[] = ["brd", "epic", "story", "test_case"]
 
@@ -46,16 +48,6 @@ interface TicketResult {
   artifactId: string
   ticketId: string
   url: string
-}
-
-function extractFigmaJson(content: string): object | null {
-  const fence = content.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (!fence) return null
-  try {
-    return JSON.parse(fence[1].trim()) as object
-  } catch {
-    return null
-  }
 }
 
 function markdownToConfluenceWiki(md: string): string {
@@ -129,7 +121,7 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
       }
 
       toast.success(
-        `${readyToPush.length} ticket${readyToPush.length !== 1 ? "s" : ""} created in Jira`
+        `${AGENT_COURIER.name} filed ${readyToPush.length} ticket${readyToPush.length !== 1 ? "s" : ""} in Jira`
       )
     } catch {
       toast.error("Jira push failed. Please try again.")
@@ -157,7 +149,7 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
           <Send className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
           <h3 className="font-semibold mb-1">No artifacts yet</h3>
           <p className="text-sm text-muted-foreground">
-            Generate artifacts first, then export to Jira, Figma, or Confluence.
+            Run the generate agents first, then export to Jira, Figma, or Confluence.
           </p>
         </div>
       </div>
@@ -169,9 +161,10 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
       <div>
         <h2 className="text-lg font-semibold mb-1">Export</h2>
         <p className="text-sm text-muted-foreground">
-          Send work to the right tool. Jira is for approved BRDs, epics, stories,
-          and tests. Screen layouts include a JSON handoff for Figma. Confluence
-          accepts wiki or Markdown paste.
+          <span className="font-medium text-foreground/80">{AGENT_COURIER.name}</span>{" "}
+          ({AGENT_COURIER.role.toLowerCase()}) files approved BRDs, epics, stories, and
+          tests to Jira. Screen layouts include JSON for Figma; Confluence accepts wiki
+          or Markdown paste.
         </p>
       </div>
 
@@ -223,12 +216,12 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
                     {pushing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Pushing…
+                        {AGENT_COURIER.name}…
                       </>
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        Push to Jira
+                        Run {AGENT_COURIER.name} → Jira
                       </>
                     )}
                   </Button>
@@ -238,7 +231,9 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
               {pushing && (
                 <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-primary font-medium">Creating tickets…</span>
+                    <span className="text-primary font-medium">
+                      {AGENT_COURIER.name} is filing tickets…
+                    </span>
                     <span className="text-xs text-muted-foreground">{progress}%</span>
                   </div>
                   <Progress value={progress} className="h-2" />
@@ -344,13 +339,13 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
             <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border border-border text-sm text-muted-foreground">
               <Info className="w-4 h-4 shrink-0 mt-0.5" />
               <p>
-                Generate <strong>Screen layouts (Figma handoff)</strong> in the
-                Generate tab after user stories exist.
+                Run <strong>Frame</strong> for screen layouts (Figma handoff) in the
+                Agents tab after user stories exist.
               </p>
             </div>
           ) : (
             layoutArtifacts.map((artifact) => {
-              const parsed = extractFigmaJson(artifact.content)
+              const parsed = extractFigmaHandoffObject(artifact.content)
               const payload =
                 parsed ??
                 ({

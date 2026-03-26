@@ -64,9 +64,9 @@ export function NewProjectDialog({
               New Digital Sales initiative
             </DialogTitle>
             <DialogDescription className="text-[13px] leading-relaxed text-muted-foreground">
-              Create a workspace to brainstorm with AI, generate requirements and
-              stories, refine artifacts, and export to Jira, Figma, or Confluence.
-              You can edit everything later from the initiative overview.
+              Create a workspace where Sage brainstorms, specialist agents build
+              BRD through layouts, Quill refines, and Courier exports to Jira,
+              Figma, or Confluence. You can edit everything later from the overview.
             </DialogDescription>
           </DialogHeader>
         </div>

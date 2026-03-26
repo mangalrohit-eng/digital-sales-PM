@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { Artifact, ArtifactType } from "@/lib/types"
+import { getAgentForArtifactType } from "@/lib/agents"
 import { toast } from "sonner"
 
 interface GenerateTabProps {
@@ -40,28 +41,32 @@ const STEPS: GenerationStep[] = [
   {
     type: "brd",
     label: "Business Requirements",
-    description: "AI generates a comprehensive BRD from your initiative context",
+    description:
+      "Morgan drafts a comprehensive BRD from your initiative context.",
     icon: FileText,
     dependsOn: null,
   },
   {
     type: "epic",
     label: "Epics",
-    description: "4–5 Epics derived from the BRD, organizing the work into themes",
+    description:
+      "Atlas derives 4–5 epics from the BRD and organizes work into themes.",
     icon: Layers,
     dependsOn: "brd",
   },
   {
     type: "story",
     label: "User Stories",
-    description: "4–6 User Stories per Epic with acceptance criteria",
+    description:
+      "Scribe writes 4–6 user stories per epic with acceptance criteria.",
     icon: BookOpen,
     dependsOn: "epic",
   },
   {
     type: "test_case",
     label: "Test Cases",
-    description: "Test cases per User Story covering functional and edge cases",
+    description:
+      "Sentinel produces test cases per story—functional, edge, and accessibility.",
     icon: TestTube2,
     dependsOn: "story",
   },
@@ -69,7 +74,7 @@ const STEPS: GenerationStep[] = [
     type: "screen_layout",
     label: "Screen layouts (Figma handoff)",
     description:
-      "Desktop/mobile layout spec plus JSON frames for Figma import or plugins",
+      "Frame builds desktop/mobile layout specs plus JSON for Figma handoff.",
     icon: LayoutTemplate,
     dependsOn: "story",
   },
@@ -99,6 +104,7 @@ function StepCard({
   const [progress, setProgress] = useState(0)
 
   const Icon = step.icon
+  const agent = getAgentForArtifactType(step.type)
   const stepArtifacts = artifacts.filter((a) => a.type === step.type)
   const isDone = stepArtifacts.length > 0
 
@@ -140,7 +146,7 @@ function StepCard({
           status: "draft",
         })
         setProgress(100)
-        toast.success("Business Requirements Document generated")
+        toast.success(`${agent.name} delivered your BRD`)
       } else if (step.type === "epic") {
         const brd = parentArtifacts[0]
         setProgress(20)
@@ -186,7 +192,9 @@ function StepCard({
           })
         }
         setProgress(100)
-        toast.success(`${count} Epic${count !== 1 ? "s" : ""} generated`)
+        toast.success(
+          `${agent.name} created ${count} epic${count !== 1 ? "s" : ""}`
+        )
       } else if (step.type === "story") {
         let totalStories = 0
         for (let i = 0; i < parentArtifacts.length; i++) {
@@ -236,7 +244,9 @@ function StepCard({
           }
         }
         setProgress(100)
-        toast.success(`${totalStories} User Stor${totalStories !== 1 ? "ies" : "y"} generated`)
+        toast.success(
+          `${agent.name} wrote ${totalStories} user stor${totalStories !== 1 ? "ies" : "y"}`
+        )
       } else if (step.type === "test_case") {
         let totalTests = 0
         for (let i = 0; i < parentArtifacts.length; i++) {
@@ -267,7 +277,9 @@ function StepCard({
           totalTests++
         }
         setProgress(100)
-        toast.success(`${totalTests} Test Case set${totalTests !== 1 ? "s" : ""} generated`)
+        toast.success(
+          `${agent.name} added ${totalTests} test case set${totalTests !== 1 ? "s" : ""}`
+        )
       } else if (step.type === "screen_layout") {
         const stories = allArtifacts.filter((a) => a.type === "story")
         if (stories.length === 0) {
@@ -301,7 +313,9 @@ function StepCard({
           status: "draft",
         })
         setProgress(100)
-        toast.success("Screen layout spec generated — export JSON from the Export tab")
+        toast.success(
+          `${agent.name} produced the screen layout spec — export JSON from Export`
+        )
       }
 
       onGenerated()
@@ -347,18 +361,27 @@ function StepCard({
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
               <h3 className="font-semibold text-sm">{step.label}</h3>
+              <Badge
+                variant="secondary"
+                className="text-[10px] h-auto py-0 px-2 font-medium bg-primary/10 text-primary border-0"
+              >
+                {agent.name}
+              </Badge>
               {isDone && (
                 <Badge
                   variant="outline"
                   className="text-[10px] h-auto py-0 px-1.5 bg-emerald-50 text-emerald-700 border-emerald-200"
                 >
                   <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
-                  {stepArtifacts.length} generated
+                  {stepArtifacts.length} from agent
                 </Badge>
               )}
             </div>
+            <p className="text-[11px] font-medium text-primary/80 mb-0.5">
+              {agent.role}
+            </p>
             <p className="text-xs text-muted-foreground mb-3">
               {step.description}
             </p>
@@ -367,7 +390,10 @@ function StepCard({
               <div className="mb-3">
                 <Progress value={progress} className="h-1.5" />
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Generating with GPT-4o...
+                  <span className="font-medium text-foreground/80">
+                    {agent.name}
+                  </span>{" "}
+                  is running… (GPT-4o)
                 </p>
               </div>
             )}
@@ -398,17 +424,17 @@ function StepCard({
                 {loading ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Generating...
+                    {agent.name}…
                   </>
                 ) : isDone ? (
                   <>
                     <Sparkles className="w-3.5 h-3.5" />
-                    Regenerate
+                    Run {agent.name} again
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3.5 h-3.5" />
-                    Generate
+                    Run {agent.name}
                   </>
                 )}
               </Button>
@@ -445,9 +471,9 @@ export function GenerateTab({
       {/* Header */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <h2 className="font-semibold">Generate Artifacts</h2>
+          <h2 className="font-semibold">Agent pipeline</h2>
           <span className="text-xs text-muted-foreground">
-            {progress}/{STEPS.length} steps complete
+            {progress}/{STEPS.length} agents complete
           </span>
         </div>
         <div className="flex gap-1">
@@ -463,8 +489,9 @@ export function GenerateTab({
           ))}
         </div>
         <p className="text-sm text-muted-foreground mt-3">
-          Generate your full artifact hierarchy in sequence — each step builds
-          on the previous one. You can regenerate any step at any time.
+          Each step is owned by a specialist agent (Morgan → Atlas → Scribe →
+          Sentinel → Frame). Run them in order; you can re-run any agent when
+          inputs change.
         </p>
       </div>
 
@@ -472,8 +499,8 @@ export function GenerateTab({
         <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
           <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
           <p className="text-sm text-primary">
-            <span className="font-semibold">{totalGenerated} artifact{totalGenerated !== 1 ? "s" : ""}</span> generated.
-            Review in <span className="font-semibold">Artifacts</span>; export from <span className="font-semibold">Export</span>.
+            <span className="font-semibold">{totalGenerated} artifact{totalGenerated !== 1 ? "s" : ""}</span> from agents.
+            Refine with <span className="font-semibold">Quill</span> in Artifacts; export via <span className="font-semibold">Export</span>.
           </p>
         </div>
       )}
@@ -498,8 +525,8 @@ export function GenerateTab({
       <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/60 text-xs text-muted-foreground">
         <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
         <p>
-          Generation uses GPT-4o and may take 10–30 seconds per step. Ensure
-          your OpenAI API key is configured in Settings.
+          Agents use GPT-4o and may take 10–30 seconds per run. Configure your
+          OpenAI API key in Settings.
         </p>
       </div>
     </div>

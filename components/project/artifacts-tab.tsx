@@ -3,6 +3,11 @@
 import { useState } from "react"
 import { useAppStore } from "@/lib/store"
 import { Artifact, ArtifactType, ArtifactStatus, STATUS_COLORS, STATUS_LABELS, ARTIFACT_TYPE_LABELS } from "@/lib/types"
+import { AGENT_QUILL, getAgentForArtifactType } from "@/lib/agents"
+import {
+  FigmaHandoffPreview,
+  screenLayoutMarkdownForPreview,
+} from "@/components/project/figma-handoff-preview"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -228,10 +233,10 @@ function ArtifactDetail({
       addComment(artifact.id, {
         author: userName,
         authorRole: userRole,
-        text: `[AI refinement] ${refineFeedback.trim()}`,
+        text: `[${AGENT_QUILL.name}] ${refineFeedback.trim()}`,
       })
       setRefineFeedback("")
-      toast.success("Artifact updated from your feedback")
+      toast.success(`${AGENT_QUILL.name} updated the artifact from your feedback`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Refinement failed")
     } finally {
@@ -247,6 +252,12 @@ function ArtifactDetail({
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-auto">
               {ARTIFACT_TYPE_LABELS[artifact.type]}
+            </Badge>
+            <Badge
+              variant="secondary"
+              className="text-[10px] px-1.5 py-0 h-auto font-medium bg-primary/10 text-primary border-0"
+            >
+              {getAgentForArtifactType(artifact.type).name}
             </Badge>
             <Badge
               variant="outline"
@@ -332,10 +343,17 @@ function ArtifactDetail({
           </div>
         ) : (
           <>
+            {artifact.type === "screen_layout" && (
+              <FigmaHandoffPreview content={artifact.content} />
+            )}
             <div
               className="artifact-content artifact-preview"
               dangerouslySetInnerHTML={{
-                __html: renderMarkdown(artifact.content),
+                __html: renderMarkdown(
+                  artifact.type === "screen_layout"
+                    ? screenLayoutMarkdownForPreview(artifact.content)
+                    : artifact.content
+                ),
               }}
             />
 
@@ -343,10 +361,11 @@ function ArtifactDetail({
               <div className="mt-8 pt-6 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  Refine with AI
+                  {AGENT_QUILL.name} · Editorial agent
                 </p>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Describe edits, tone, missing sections, or stakeholder asks. GPT-4o rewrites the full artifact; a note is added to comments.
+                  {AGENT_QUILL.name} rewrites the full artifact from your instructions (tone,
+                  missing sections, stakeholder asks). A trace is added to comments.
                 </p>
                 <Textarea
                   value={refineFeedback}
@@ -365,12 +384,12 @@ function ArtifactDetail({
                   {refining ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      Refining…
+                      {AGENT_QUILL.name}…
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5" />
-                      Apply refinement
+                      Run {AGENT_QUILL.name}
                     </>
                   )}
                 </Button>

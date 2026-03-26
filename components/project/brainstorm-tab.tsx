@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { ChatMessage } from "@/lib/types"
+import { AGENT_SAGE, agentInitials } from "@/lib/agents"
 import { toast } from "sonner"
 
 interface BrainstormTabProps {
@@ -54,14 +55,14 @@ function MessageBubble({
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
       <Avatar className="w-7 h-7 shrink-0 mt-0.5">
         <AvatarFallback
-          className={`text-xs font-semibold ${
-            isUser ? "bg-primary text-white" : "bg-slate-100 text-slate-600"
+          className={`text-[10px] font-bold tracking-tight ${
+            isUser ? "bg-primary text-white" : "bg-primary/15 text-primary"
           }`}
         >
           {isUser ? (
             <User className="w-3.5 h-3.5" />
           ) : (
-            <Sparkles className="w-3.5 h-3.5" />
+            agentInitials(AGENT_SAGE)
           )}
         </AvatarFallback>
       </Avatar>
@@ -69,6 +70,11 @@ function MessageBubble({
       <div
         className={`group relative max-w-[80%] ${isUser ? "items-end" : "items-start"} flex flex-col`}
       >
+        {!isUser && (
+          <span className="mb-1 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary/90">
+            {AGENT_SAGE.name} · {AGENT_SAGE.role}
+          </span>
+        )}
         <div
           className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
             isUser
@@ -182,9 +188,11 @@ export function BrainstormTab({
             <Sparkles className="w-3.5 h-3.5 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-semibold">AI Brainstorm</p>
+            <p className="text-sm font-semibold">
+              {AGENT_SAGE.name} · Discovery
+            </p>
             <p className="text-xs text-muted-foreground">
-              Spectrum.com Digital Sales specialist
+              Agentic brainstorm for Spectrum.com digital sales
             </p>
           </div>
         </div>
@@ -212,11 +220,11 @@ export function BrainstormTab({
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
                 <Sparkles className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="font-semibold mb-2">Start brainstorming</h3>
+              <h3 className="font-semibold mb-2">Start with Sage</h3>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
-                Ask me anything about Digital Sales opportunities for Spectrum.com. I&apos;ll
-                help you generate ideas, identify friction points, and build
-                your hypothesis.
+                {AGENT_SAGE.name} explores Digital Sales opportunities for Spectrum.com—ideas,
+                friction, and hypotheses—before you hand off to the generate
+                pipeline.
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {QUICK_PROMPTS.map((prompt) => (
@@ -239,13 +247,18 @@ export function BrainstormTab({
           {streaming && streamingText && (
             <div className="flex gap-3">
               <Avatar className="w-7 h-7 shrink-0 mt-0.5">
-                <AvatarFallback className="bg-slate-100 text-slate-600 text-xs">
-                  <Sparkles className="w-3.5 h-3.5" />
+                <AvatarFallback className="bg-primary/15 text-primary text-[10px] font-bold">
+                  {agentInitials(AGENT_SAGE)}
                 </AvatarFallback>
               </Avatar>
-              <div className="max-w-[80%] rounded-2xl rounded-tl-sm px-4 py-3 bg-muted text-sm leading-relaxed whitespace-pre-wrap">
-                {streamingText}
-                <span className="inline-block w-1 h-4 bg-primary/60 ml-0.5 animate-pulse align-middle" />
+              <div className="flex max-w-[80%] flex-col">
+                <span className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-primary/90">
+                  {AGENT_SAGE.name} · responding
+                </span>
+                <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-muted text-sm leading-relaxed whitespace-pre-wrap">
+                  {streamingText}
+                  <span className="inline-block w-1 h-4 bg-primary/60 ml-0.5 animate-pulse align-middle" />
+                </div>
               </div>
             </div>
           )}
@@ -253,14 +266,19 @@ export function BrainstormTab({
           {streaming && !streamingText && (
             <div className="flex gap-3">
               <Avatar className="w-7 h-7 shrink-0">
-                <AvatarFallback className="bg-slate-100 text-slate-600 text-xs">
-                  <Sparkles className="w-3.5 h-3.5" />
+                <AvatarFallback className="bg-primary/15 text-primary text-[10px] font-bold">
+                  {agentInitials(AGENT_SAGE)}
                 </AvatarFallback>
               </Avatar>
-              <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-muted flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:0ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:150ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:300ms]" />
+              <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-muted flex flex-col gap-2">
+                <span className="text-xs font-medium text-foreground/80">
+                  {AGENT_SAGE.name} is thinking…
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:0ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:150ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:300ms]" />
+                </div>
               </div>
             </div>
           )}
@@ -310,7 +328,7 @@ export function BrainstormTab({
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
-          Context-aware responses tailored to Spectrum.com&apos;s digital sales funnel
+          {AGENT_SAGE.name} uses your initiative context and Spectrum.com digital sales patterns.
         </p>
       </div>
     </div>

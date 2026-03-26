@@ -174,7 +174,76 @@ export const DEMO_SEED_ARTIFACTS: Artifact[] = [
     title: "Screen layout: Mobile checkout (ZIP → pay)",
     status: "draft",
     comments: [],
-    content: `## Frames\n\n- **Cart** — primary CTA, trust row.\n- **Address** — ZIP first, serviceability banner slot.\n- **Payment** — sticky summary, card fields, legal copy.\n\n\`\`\`json\n{\n  "figmaImportVersion": "1.0-demo",\n  "document": {\n    "name": "Mobile checkout",\n    "frames": [\n      { "name": "Address / ZIP", "width": 390, "height": 844, "layoutMode": "VERTICAL", "padding": 16, "itemSpacing": 12 }\n    ]\n  }\n}\n\`\`\`\n`,
+    content: `## Frames\n\n- **Cart** — primary CTA, trust row.\n- **Address** — ZIP first, serviceability banner slot.\n- **Payment** — sticky summary, card fields, legal copy.\n\n\`\`\`json\n${JSON.stringify(
+      {
+        figmaImportVersion: "1.0-demo",
+        document: {
+          name: "Mobile checkout",
+          frames: [
+            {
+              name: "Address / ZIP",
+              width: 390,
+              height: 844,
+              layoutMode: "VERTICAL",
+              padding: 16,
+              itemSpacing: 12,
+              children: [
+                {
+                  type: "TEXT",
+                  characters: "Service address",
+                  fontSize: 20,
+                  fontWeight: 600,
+                },
+                {
+                  type: "TEXT",
+                  characters: "Enter your ZIP to see available plans.",
+                  fontSize: 14,
+                  fontWeight: 400,
+                },
+                {
+                  type: "FRAME",
+                  name: "ZIP field",
+                  layoutMode: "VERTICAL",
+                  padding: 12,
+                  itemSpacing: 6,
+                  children: [
+                    {
+                      type: "TEXT",
+                      characters: "ZIP code",
+                      fontSize: 11,
+                      fontWeight: 500,
+                    },
+                    {
+                      type: "TEXT",
+                      characters: "90210",
+                      fontSize: 16,
+                      fontWeight: 400,
+                    },
+                  ],
+                },
+                {
+                  type: "FRAME",
+                  name: "Primary CTA",
+                  layoutMode: "HORIZONTAL",
+                  padding: 14,
+                  itemSpacing: 8,
+                  children: [
+                    {
+                      type: "TEXT",
+                      characters: "Continue",
+                      fontSize: 16,
+                      fontWeight: 600,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      null,
+      2
+    )}\n\`\`\`\n`,
     createdAt: created,
     updatedAt: updated,
   },

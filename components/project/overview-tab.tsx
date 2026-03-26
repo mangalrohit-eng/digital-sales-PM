@@ -241,7 +241,10 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
               Core workflow
             </p>
             <p className="text-sm text-foreground/90 mb-4">
-              Brainstorm with AI, generate BRD through tests and screen layouts, refine in Artifacts, then export to Jira, Figma, or Confluence.
+              <strong className="font-semibold text-foreground">Sage</strong> brainstorms;
+              <strong className="font-semibold text-foreground"> Morgan, Atlas, Scribe, Sentinel, and Frame</strong> build the stack;
+              <strong className="font-semibold text-foreground"> Quill</strong> refines in Artifacts;
+              <strong className="font-semibold text-foreground"> Courier</strong> pushes to Jira. Export also covers Figma and Confluence.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -252,7 +255,7 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
                 onClick={() => onNavigate("brainstorm")}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                Brainstorm
+                Sage
                 <ArrowRight className="w-3 h-3 opacity-50" />
               </Button>
               <Button
@@ -263,7 +266,7 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
                 onClick={() => onNavigate("generate")}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                Generate
+                Agents
                 <ArrowRight className="w-3 h-3 opacity-50" />
               </Button>
               <Button
@@ -396,7 +399,7 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
             <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
               {project.cro_context || (
                 <span className="italic">
-                  No context provided. Add context to improve AI generation quality.
+                  No context provided. Add context so agents (Sage, Morgan, …) produce better output.
                 </span>
               )}
             </p>

@@ -7,7 +7,7 @@ import { ArtifactType } from "@/lib/types"
 export const maxDuration = 60
 
 const PROMPTS: Record<ArtifactType, (context: string) => string> = {
-  brd: (context) => `You are a senior business analyst specializing in digital sales and online funnel optimization for Spectrum.com, Charter Communications' digital sales platform.
+  brd: (context) => `You are Morgan, a requirements-architect agent in RelayBench. Operate as a senior business analyst specializing in digital sales and online funnel optimization for Spectrum.com, a digital subscription and services sales platform.
 
 Create a comprehensive Business Requirements Document (BRD) for the following initiative:
 
@@ -32,7 +32,7 @@ Structure the BRD with these sections:
 
 Be specific to Spectrum.com's digital sales context. Format in clean markdown.`,
 
-  epic: (context) => `You are a senior product manager for Spectrum.com's Digital Sales team.
+  epic: (context) => `You are Atlas, an epic-structuring agent in RelayBench. Operate as a senior product manager for Spectrum.com's Digital Sales team.
 
 Based on this Business Requirements Document, create 4-5 Epics that organize the development work:
 
@@ -50,7 +50,7 @@ For each Epic provide:
 
 Separate each Epic with a horizontal rule. Be specific to Spectrum.com. Use markdown.`,
 
-  story: (context) => `You are a senior product manager for Spectrum.com's Digital Sales team.
+  story: (context) => `You are Scribe, a backlog-writing agent in RelayBench. Operate as a senior product manager for Spectrum.com's Digital Sales team.
 
 Based on this Epic, create 4-6 detailed User Stories ready for sprint planning:
 
@@ -71,7 +71,7 @@ For each User Story provide:
 
 Use Spectrum.com-specific personas: "new internet customer", "existing customer upgrading", "customer moving to new address", "mobile shopper", etc. Use markdown.`,
 
-  test_case: (context) => `You are a QA engineer specializing in e-commerce testing for Spectrum.com.
+  test_case: (context) => `You are Sentinel, a quality-assurance agent in RelayBench. Operate as a QA engineer specializing in e-commerce testing for Spectrum.com.
 
 Based on this User Story, create comprehensive test cases:
 
@@ -93,7 +93,7 @@ For each test case provide:
 
 Cover: happy path, edge cases, negative scenarios, mobile behavior, and accessibility (WCAG 2.1 AA). Use markdown.`,
 
-  screen_layout: (context) => `You are a senior product designer and UX architect for a digital sales / e-commerce web experience.
+  screen_layout: (context) => `You are Frame, a layout-and-handoff agent in RelayBench. Operate as a senior product designer and UX architect for a digital sales / e-commerce web experience.
 
 Using the user stories and flows below, produce a **screen layout specification** suitable for handoff to design tools (Figma) and engineering.
 

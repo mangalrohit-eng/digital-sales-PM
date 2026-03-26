@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { useAppStore } from "@/lib/store"
+import { APP_NAME } from "@/lib/brand"
 import { InitiativesPanel } from "@/components/dashboard/initiatives-panel"
 import { Button } from "@/components/ui/button"
 import {
@@ -101,7 +102,7 @@ export default function DashboardPage() {
               </h1>
               <p className="text-white/45 text-sm max-w-md">
                 {activeProjects === 0
-                  ? "Start your first Digital Sales initiative to generate AI-powered artifacts for Spectrum.com."
+                  ? `Start your first initiative in ${APP_NAME} — Sage, specialist agents, Quill, and Courier cover the full PM loop.`
                   : `You have ${activeProjects} active initiative${activeProjects !== 1 ? "s" : ""} — ${totalArtifacts} artifact${totalArtifacts !== 1 ? "s" : ""} generated.`}
               </p>
             </div>
