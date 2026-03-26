@@ -1,9 +1,7 @@
 "use client"
 
 import { Project, Artifact } from "@/lib/types"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,13 +10,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   MoreHorizontal,
-  ArrowRight,
+  ArrowUpRight,
   FileText,
   Layers,
   BookOpen,
   TestTube2,
   Trash2,
-  Calendar,
+  Clock,
 } from "lucide-react"
 import Link from "next/link"
 import { formatDistanceToNow } from "@/lib/date-utils"
@@ -30,9 +28,24 @@ interface ProjectCardProps {
 }
 
 const STATUS_CONFIG = {
-  active: { label: "Active", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  completed: { label: "Completed", className: "bg-sky-50 text-sky-700 border-sky-200" },
-  archived: { label: "Archived", className: "bg-slate-100 text-slate-600 border-slate-200" },
+  active: {
+    label: "Active",
+    dot: "bg-emerald-400",
+    badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    stripe: "from-emerald-500 to-emerald-400",
+  },
+  completed: {
+    label: "Completed",
+    dot: "bg-sky-400",
+    badge: "bg-sky-50 text-sky-700 border-sky-200",
+    stripe: "from-sky-500 to-sky-400",
+  },
+  archived: {
+    label: "Archived",
+    dot: "bg-slate-400",
+    badge: "bg-slate-100 text-slate-600 border-slate-200",
+    stripe: "from-slate-400 to-slate-300",
+  },
 }
 
 export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) {
@@ -41,40 +54,45 @@ export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) 
   const storyCount = artifacts.filter((a) => a.type === "story").length
   const testCount = artifacts.filter((a) => a.type === "test_case").length
   const approvedCount = artifacts.filter((a) => a.status === "approved").length
+  const totalCount = artifacts.length
+  const approvalPct = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0
   const status = STATUS_CONFIG[project.status]
 
   return (
-    <Card className="group hover:shadow-md hover:border-primary/30 transition-all duration-200">
-      <CardContent className="p-5">
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-3 mb-3">
+    <div className="group relative bg-card rounded-2xl border border-border/70 overflow-hidden card-elevated cursor-pointer">
+      {/* Top accent stripe */}
+      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${status.stripe} opacity-80`} />
+
+      {/* Card content */}
+      <div className="p-5 pt-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <Badge
-                variant="outline"
-                className={`text-[10px] px-1.5 py-0 h-auto font-medium ${status.className}`}
-              >
+            <div className="flex items-center gap-1.5 mb-2">
+              <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                 {status.label}
-              </Badge>
+              </span>
             </div>
-            <h3 className="font-semibold text-foreground leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+            <h3 className="font-semibold text-[14px] text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors duration-150">
               {project.name}
             </h3>
           </div>
+
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-accent shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <button className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-muted shrink-0 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground hover:text-foreground" />
               }
             >
               <MoreHorizontal className="w-4 h-4" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem
-                className="text-destructive focus:text-destructive cursor-pointer"
+                className="text-destructive cursor-pointer text-[13px] gap-2"
                 onClick={() => onDelete(project.id)}
               >
-                <Trash2 className="w-4 h-4 mr-2" />
+                <Trash2 className="w-3.5 h-3.5" />
                 Delete initiative
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -83,54 +101,60 @@ export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) 
 
         {/* Description */}
         {project.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+          <p className="text-[13px] text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
             {project.description}
           </p>
         )}
 
-        {/* Artifact counts */}
-        <div className="grid grid-cols-4 gap-2 mb-4">
+        {/* Artifact pills */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
           {[
-            { icon: FileText, count: brdCount, label: "BRD" },
-            { icon: Layers, count: epicCount, label: "Epics" },
-            { icon: BookOpen, count: storyCount, label: "Stories" },
-            { icon: TestTube2, count: testCount, label: "Tests" },
-          ].map(({ icon: Icon, count, label }) => (
+            { icon: FileText, count: brdCount, label: "BRD", color: "text-violet-500 bg-violet-50 border-violet-200/70" },
+            { icon: Layers, count: epicCount, label: "Epics", color: "text-blue-500 bg-blue-50 border-blue-200/70" },
+            { icon: BookOpen, count: storyCount, label: "Stories", color: "text-sky-500 bg-sky-50 border-sky-200/70" },
+            { icon: TestTube2, count: testCount, label: "Tests", color: "text-emerald-500 bg-emerald-50 border-emerald-200/70" },
+          ].map(({ icon: Icon, count, label, color }) => (
             <div
               key={label}
-              className="flex flex-col items-center py-2 rounded-md bg-muted/60"
+              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] font-medium ${color}`}
             >
-              <Icon className="w-3.5 h-3.5 text-muted-foreground mb-1" />
-              <span className="text-sm font-semibold leading-none">{count}</span>
-              <span className="text-[10px] text-muted-foreground mt-0.5">
-                {label}
-              </span>
+              <Icon className="w-3 h-3" strokeWidth={2} />
+              <span>{count} {label}</span>
             </div>
           ))}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Calendar className="w-3 h-3" />
-            <span>{formatDistanceToNow(project.createdAt)}</span>
-            {approvedCount > 0 && (
-              <>
-                <span className="text-border">·</span>
-                <span className="text-emerald-600 font-medium">
-                  {approvedCount} approved
-                </span>
-              </>
-            )}
+        {/* Approval progress */}
+        {totalCount > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] text-muted-foreground">Approval progress</span>
+              <span className="text-[11px] font-semibold text-foreground">{approvalPct}%</span>
+            </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
+                style={{ width: `${approvalPct}%` }}
+              />
+            </div>
           </div>
-          <Link href={`/projects/${project.id}`}>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 hover:bg-primary hover:text-white hover:border-primary transition-all">
-              Open
-              <ArrowRight className="w-3 h-3" />
-            </Button>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+            <Clock className="w-3 h-3" />
+            <span>{formatDistanceToNow(project.createdAt)}</span>
+          </div>
+          <Link
+            href={`/projects/${project.id}`}
+            className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:text-primary/80 transition-colors"
+          >
+            Open workspace
+            <ArrowUpRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

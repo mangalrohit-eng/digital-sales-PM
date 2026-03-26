@@ -12,17 +12,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, Settings, User } from "lucide-react"
+import { LogOut, Settings, ChevronRight } from "lucide-react"
 import Link from "next/link"
 
 interface HeaderProps {
   userName: string
   userRole: string
   userTitle: string
-  breadcrumb?: { label: string; href?: string }[]
 }
 
-export function Header({ userName, userRole, userTitle, breadcrumb }: HeaderProps) {
+export function Header({ userName, userRole, userTitle }: HeaderProps) {
   const router = useRouter()
   const initials = userName
     .split(" ")
@@ -31,89 +30,65 @@ export function Header({ userName, userRole, userTitle, breadcrumb }: HeaderProp
     .toUpperCase()
 
   return (
-    <header className="fixed top-0 left-60 right-0 h-16 bg-background/95 backdrop-blur-sm border-b border-border flex items-center justify-between px-6 z-20">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm">
-        {breadcrumb && breadcrumb.length > 0 ? (
-          breadcrumb.map((crumb, i) => (
-            <span key={i} className="flex items-center gap-2">
-              {i > 0 && <span className="text-muted-foreground">/</span>}
-              {crumb.href ? (
-                <Link
-                  href={crumb.href}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {crumb.label}
-                </Link>
-              ) : (
-                <span className="font-medium text-foreground">{crumb.label}</span>
-              )}
-            </span>
-          ))
-        ) : (
-          <span className="text-muted-foreground text-sm">
-            Charter Digital Sales
-          </span>
-        )}
-      </nav>
+    <header className="fixed top-0 left-[220px] right-0 h-16 bg-background/90 backdrop-blur-md border-b border-border/60 flex items-center justify-between px-6 z-20"
+      style={{ boxShadow: "0 1px 0 oklch(0 0 0 / 0.04), 0 2px 8px oklch(0 0 0 / 0.04)" }}
+    >
+      {/* Charter wordmark */}
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] font-semibold text-foreground/50 tracking-tight">Charter</span>
+        <ChevronRight className="w-3.5 h-3.5 text-border" />
+        <span className="text-[13px] font-semibold text-foreground/80 tracking-tight">Spectrum Digital Sales</span>
+      </div>
 
       {/* User menu */}
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <button className="flex items-center gap-3 hover:bg-accent rounded-lg px-3 py-1.5 transition-colors outline-none" />
+            <button className="flex items-center gap-3 hover:bg-accent/60 rounded-xl px-3 py-2 transition-all duration-150 outline-none group" />
           }
         >
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium leading-tight">{userName}</p>
-            <p className="text-xs text-muted-foreground leading-tight">
-              {userTitle}
-            </p>
+            <p className="text-[13px] font-semibold leading-tight text-foreground">{userName}</p>
+            <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{userTitle}</p>
           </div>
           <div className="relative">
-            <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-primary text-white text-xs font-semibold">
+            <Avatar className="w-8 h-8 ring-2 ring-border group-hover:ring-primary/30 transition-all">
+              <AvatarFallback className="bg-primary text-white text-xs font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <Badge
-              className={`absolute -bottom-1 -right-1 text-[9px] px-1 py-0 h-auto leading-tight border-background border ${
-                userRole === "admin"
-                  ? "bg-violet-500 text-white"
-                  : "bg-sky-500 text-white"
-              }`}
-            >
-              {userRole === "admin" ? "Admin" : "Analyst"}
-            </Badge>
+            <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-background flex items-center justify-center text-[7px] font-bold text-white ${userRole === "admin" ? "bg-violet-500" : "bg-sky-500"}`}>
+              {userRole === "admin" ? "A" : "P"}
+            </div>
           </div>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuLabel>
-            <div>
-              <p className="font-medium">{userName}</p>
-              <p className="text-xs text-muted-foreground font-normal">
-                {userTitle}
-              </p>
+
+        <DropdownMenuContent align="end" className="w-56 mt-1">
+          <DropdownMenuLabel className="pb-2">
+            <div className="flex items-center gap-2.5">
+              <Avatar className="w-8 h-8">
+                <AvatarFallback className="bg-primary text-white text-xs font-bold">{initials}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-semibold text-[13px]">{userName}</p>
+                <p className="text-[11px] text-muted-foreground font-normal">{userTitle}</p>
+              </div>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="cursor-pointer"
+            className="cursor-pointer text-[13px] gap-2.5"
             onClick={() => router.push("/settings")}
           >
-            <Settings className="w-4 h-4 mr-2" />
+            <Settings className="w-3.5 h-3.5" />
             Settings
-          </DropdownMenuItem>
-          <DropdownMenuItem disabled>
-            <User className="w-4 h-4 mr-2" />
-            Profile
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="text-destructive cursor-pointer"
+            className="text-destructive cursor-pointer text-[13px] gap-2.5"
             onClick={() => signOut({ callbackUrl: "/login" })}
           >
-            <LogOut className="w-4 h-4 mr-2" />
+            <LogOut className="w-3.5 h-3.5" />
             Sign out
           </DropdownMenuItem>
         </DropdownMenuContent>

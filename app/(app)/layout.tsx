@@ -25,8 +25,8 @@ export default async function AppLayout({
         userRole={user.role ?? "analyst"}
         userTitle={user.title ?? ""}
       />
-      <main className="ml-60 pt-16 min-h-screen">
-        <div className="p-6">{children}</div>
+      <main className="ml-[220px] pt-16 min-h-screen app-bg">
+        <div className="p-7 max-w-7xl">{children}</div>
       </main>
     </div>
   )
