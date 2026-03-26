@@ -14,6 +14,7 @@ import {
   Layers,
   BookOpen,
   TestTube2,
+  LayoutTemplate,
   Edit3,
   Save,
   X,
@@ -35,6 +36,7 @@ const TYPE_ICONS: Record<ArtifactType, React.ElementType> = {
   epic: Layers,
   story: BookOpen,
   test_case: TestTube2,
+  screen_layout: LayoutTemplate,
 }
 
 interface ArtifactsTabProps {

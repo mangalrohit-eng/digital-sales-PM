@@ -1,4 +1,9 @@
-export type ArtifactType = "brd" | "epic" | "story" | "test_case"
+export type ArtifactType =
+  | "brd"
+  | "epic"
+  | "story"
+  | "test_case"
+  | "screen_layout"
 export type ArtifactStatus = "draft" | "in_review" | "approved"
 export type ProjectStatus = "active" | "completed" | "archived"
 
@@ -47,6 +52,7 @@ export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   epic: "Epic",
   story: "User Story",
   test_case: "Test Case",
+  screen_layout: "Screen layout",
 }
 
 export const STATUS_LABELS: Record<ArtifactStatus, string> = {

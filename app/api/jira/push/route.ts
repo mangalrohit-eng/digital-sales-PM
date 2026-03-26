@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const tickets = artifactIds.map((artifactId) => ({
     artifactId,
     ticketId: `${JIRA_PROJECT_KEY}-${ticketCounter++}`,
-    url: `https://charter.atlassian.net/browse/${JIRA_PROJECT_KEY}-${ticketCounter - 1}`,
+    url: `https://example.atlassian.net/browse/${JIRA_PROJECT_KEY}-${ticketCounter - 1}`,
     status: "To Do",
     createdAt: new Date().toISOString(),
   }))

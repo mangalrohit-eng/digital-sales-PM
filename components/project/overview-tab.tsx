@@ -19,6 +19,8 @@ import {
   MessageSquare,
   Sparkles,
   ArrowRight,
+  Share2,
+  LayoutTemplate,
 } from "lucide-react"
 import { formatDate } from "@/lib/date-utils"
 import { useState } from "react"
@@ -42,6 +44,7 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
   const epicCount = artifacts.filter((a) => a.type === "epic").length
   const storyCount = artifacts.filter((a) => a.type === "story").length
   const testCount = artifacts.filter((a) => a.type === "test_case").length
+  const layoutCount = artifacts.filter((a) => a.type === "screen_layout").length
 
   const draftCount = artifacts.filter((a) => a.status === "draft").length
   const reviewCount = artifacts.filter((a) => a.status === "in_review").length
@@ -104,7 +107,7 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
               Core workflow
             </p>
             <p className="text-sm text-foreground/90 mb-4">
-              Brainstorm with AI, generate BRD → stories → tests, refine in Artifacts, then export to Jira.
+              Brainstorm with AI, generate BRD through tests and screen layouts, refine in Artifacts, then export to Jira, Figma, or Confluence.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -138,6 +141,16 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
               >
                 <FileText className="w-3.5 h-3.5" />
                 Artifacts
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => onNavigate("export")}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                Export
               </Button>
             </div>
           </CardContent>
@@ -179,12 +192,13 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
       </Card>
 
       {/* Artifact counts */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
           { icon: FileText, label: "BRD", count: brdCount, color: "bg-violet-50 text-violet-600" },
           { icon: Layers, label: "Epics", count: epicCount, color: "bg-blue-50 text-blue-600" },
           { icon: BookOpen, label: "Stories", count: storyCount, color: "bg-sky-50 text-sky-600" },
           { icon: TestTube2, label: "Test Cases", count: testCount, color: "bg-emerald-50 text-emerald-600" },
+          { icon: LayoutTemplate, label: "Layouts", count: layoutCount, color: "bg-fuchsia-50 text-fuchsia-700" },
         ].map(({ icon: Icon, label, count, color }) => (
           <Card key={label}>
             <CardContent className="p-4 text-center">

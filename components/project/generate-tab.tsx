@@ -10,6 +10,7 @@ import {
   Layers,
   BookOpen,
   TestTube2,
+  LayoutTemplate,
   Sparkles,
   CheckCircle2,
   ChevronRight,
@@ -62,6 +63,14 @@ const STEPS: GenerationStep[] = [
     label: "Test Cases",
     description: "Test cases per User Story covering functional and edge cases",
     icon: TestTube2,
+    dependsOn: "story",
+  },
+  {
+    type: "screen_layout",
+    label: "Screen layouts (Figma handoff)",
+    description:
+      "Desktop/mobile layout spec plus JSON frames for Figma import or plugins",
+    icon: LayoutTemplate,
     dependsOn: "story",
   },
 ]
@@ -259,6 +268,40 @@ function StepCard({
         }
         setProgress(100)
         toast.success(`${totalTests} Test Case set${totalTests !== 1 ? "s" : ""} generated`)
+      } else if (step.type === "screen_layout") {
+        const stories = allArtifacts.filter((a) => a.type === "story")
+        if (stories.length === 0) {
+          throw new Error("Add user stories before generating screen layouts")
+        }
+        const context = `Initiative: ${projectName}\n\nCRO context:\n${croContext || "Digital commerce / CRO initiative"}\n\n---\n\nUser stories:\n\n${stories
+          .map((s) => `### ${s.title}\n${s.content}`)
+          .join("\n\n---\n\n")}`
+        setProgress(25)
+        const res = await fetch("/api/ai/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "screen_layout",
+            context,
+            title: `Screen layouts: ${projectName}`,
+          }),
+        })
+        setProgress(80)
+        if (!res.ok) {
+          const d = await res.json()
+          throw new Error(d.error ?? "Generation failed")
+        }
+        const data = await res.json()
+        addArtifact({
+          projectId,
+          parentId: null,
+          type: "screen_layout",
+          title: `Screen layouts: ${projectName}`,
+          content: data.content,
+          status: "draft",
+        })
+        setProgress(100)
+        toast.success("Screen layout spec generated — export JSON from the Export tab")
       }
 
       onGenerated()
@@ -332,7 +375,15 @@ function StepCard({
             {!canGenerate && step.dependsOn && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
                 <Info className="w-3.5 h-3.5" />
-                <span>Generate {step.dependsOn === "brd" ? "Business Requirements" : step.dependsOn === "epic" ? "Epics" : "User Stories"} first</span>
+                <span>
+                  Generate{" "}
+                  {step.dependsOn === "brd"
+                    ? "Business Requirements"
+                    : step.dependsOn === "epic"
+                      ? "Epics"
+                      : "User Stories"}{" "}
+                  first
+                </span>
               </div>
             )}
 
@@ -422,7 +473,7 @@ export function GenerateTab({
           <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
           <p className="text-sm text-primary">
             <span className="font-semibold">{totalGenerated} artifact{totalGenerated !== 1 ? "s" : ""}</span> generated.
-            Review and edit them in the <span className="font-semibold">Artifacts</span> tab.
+            Review in <span className="font-semibold">Artifacts</span>; export from <span className="font-semibold">Export</span>.
           </p>
         </div>
       )}

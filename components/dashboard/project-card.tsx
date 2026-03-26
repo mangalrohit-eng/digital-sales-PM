@@ -15,6 +15,7 @@ import {
   Layers,
   BookOpen,
   TestTube2,
+  LayoutTemplate,
   Trash2,
   Clock,
 } from "lucide-react"
@@ -53,6 +54,7 @@ export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) 
   const epicCount = artifacts.filter((a) => a.type === "epic").length
   const storyCount = artifacts.filter((a) => a.type === "story").length
   const testCount = artifacts.filter((a) => a.type === "test_case").length
+  const layoutCount = artifacts.filter((a) => a.type === "screen_layout").length
   const approvedCount = artifacts.filter((a) => a.status === "approved").length
   const totalCount = artifacts.length
   const approvalPct = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0
@@ -113,6 +115,7 @@ export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) 
             { icon: Layers, count: epicCount, label: "Epics", color: "text-blue-500 bg-blue-50 border-blue-200/70" },
             { icon: BookOpen, count: storyCount, label: "Stories", color: "text-sky-500 bg-sky-50 border-sky-200/70" },
             { icon: TestTube2, count: testCount, label: "Tests", color: "text-emerald-500 bg-emerald-50 border-emerald-200/70" },
+            { icon: LayoutTemplate, count: layoutCount, label: "Layouts", color: "text-fuchsia-600 bg-fuchsia-50 border-fuchsia-200/70" },
           ].map(({ icon: Icon, count, label, color }) => (
             <div
               key={label}

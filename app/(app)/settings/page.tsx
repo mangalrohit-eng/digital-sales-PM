@@ -223,7 +223,7 @@ export default function SettingsPage() {
                 email: "admin@demo.app",
                 role: "Admin",
                 title: "Director, Digital Sales",
-                capabilities: ["Approve artifacts", "Push to Jira", "Full access"],
+                capabilities: ["Approve artifacts", "Export to Jira", "Full access"],
               },
               {
                 email: "analyst@demo.app",

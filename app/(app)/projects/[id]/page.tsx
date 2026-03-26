@@ -9,14 +9,13 @@ import { OverviewTab } from "@/components/project/overview-tab"
 import { BrainstormTab } from "@/components/project/brainstorm-tab"
 import { GenerateTab } from "@/components/project/generate-tab"
 import { ArtifactsTab } from "@/components/project/artifacts-tab"
-import { JiraTab } from "@/components/project/jira-tab"
-import { Badge } from "@/components/ui/badge"
+import { ExportTab } from "@/components/project/export-tab"
 import {
   LayoutDashboard,
   MessageSquare,
   Sparkles,
   FileStack,
-  ArrowUpRight,
+  Share2,
   CheckCircle2,
   ChevronRight,
 } from "lucide-react"
@@ -27,12 +26,17 @@ const TAB_VALUES = [
   "brainstorm",
   "generate",
   "artifacts",
-  "jira",
+  "export",
 ] as const
 type TabValue = (typeof TAB_VALUES)[number]
 
 function isTabValue(v: string | null): v is TabValue {
   return !!v && (TAB_VALUES as readonly string[]).includes(v)
+}
+
+function normalizeTabParam(v: string | null): string | null {
+  if (v === "jira") return "export"
+  return v
 }
 
 interface PageProps {
@@ -73,9 +77,14 @@ export default function ProjectPage({ params }: PageProps) {
   const approvedCount = artifacts.filter((a) => a.status === "approved").length
   const totalCount = artifacts.length
   const inReviewCount = artifacts.filter((a) => a.status === "in_review").length
+  const jiraPushedCount = artifacts.filter(
+    (a) =>
+      a.jiraTicketId &&
+      ["brd", "epic", "story", "test_case"].includes(a.type)
+  ).length
 
   const activeTab = useMemo((): TabValue => {
-    const t = searchParams.get("tab")
+    const t = normalizeTabParam(searchParams.get("tab"))
     return isTabValue(t) ? t : "brainstorm"
   }, [searchParams])
 
@@ -98,13 +107,21 @@ export default function ProjectPage({ params }: PageProps) {
   }, [project.chatHistory, totalCount])
 
   const tabs = [
-    { value: "overview", label: "Overview", icon: LayoutDashboard, badge: null, workflow: false },
+    {
+      value: "overview",
+      label: "Overview",
+      icon: LayoutDashboard,
+      badge: null,
+      workflow: false,
+      step: null as number | null,
+    },
     {
       value: "brainstorm",
       label: "Brainstorm",
       icon: MessageSquare,
       badge: null,
       workflow: true,
+      step: 1,
     },
     {
       value: "generate",
@@ -112,6 +129,7 @@ export default function ProjectPage({ params }: PageProps) {
       icon: Sparkles,
       badge: null,
       workflow: true,
+      step: 2,
     },
     {
       value: "artifacts",
@@ -119,13 +137,15 @@ export default function ProjectPage({ params }: PageProps) {
       icon: FileStack,
       badge: totalCount > 0 ? String(totalCount) : null,
       workflow: true,
+      step: 3,
     },
     {
-      value: "jira",
-      label: "Jira Export",
-      icon: ArrowUpRight,
-      badge: approvedCount > 0 ? String(approvedCount) : null,
+      value: "export",
+      label: "Export",
+      icon: Share2,
+      badge: jiraPushedCount > 0 ? String(jiraPushedCount) : null,
       workflow: false,
+      step: null,
     },
   ]
 
@@ -178,78 +198,89 @@ export default function ProjectPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Workflow rail */}
-      <div className="mb-6 rounded-xl border border-border/80 bg-card/80 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm px-4 py-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Core workflow
+      <Tabs value={activeTab} onValueChange={setTab}>
+        {/* Primary demo focus: workflow navigation */}
+        <div className="mb-8 rounded-2xl border-2 border-primary/35 bg-gradient-to-br from-primary/[0.12] via-card to-muted/40 shadow-lg shadow-primary/10 ring-1 ring-primary/15 overflow-hidden">
+          <div className="border-b border-primary/15 bg-primary/[0.06] px-4 py-4 sm:px-6 sm:py-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
+              Demo workflow
             </p>
-            <p className="text-sm text-foreground/90 mt-0.5">
-              Brainstorm → Generate → Refine artifacts → Export to Jira
+            <p className="text-base sm:text-lg font-semibold text-foreground mt-1.5 leading-snug">
+              Brainstorm → Generate → Artifacts → Export (Jira, Figma, Confluence)
             </p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
+              Use the steps below in order; this is the main path reviewers follow in the demo.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-4 text-xs font-medium text-muted-foreground">
+              <span>Quick jump:</span>
+              {(
+                ["brainstorm", "generate", "artifacts", "export"] as const
+              ).map((key, i) => (
+                <span key={key} className="flex items-center gap-1.5">
+                  {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-primary/40" />}
+                  <button
+                    type="button"
+                    onClick={() => setTab(key)}
+                    className={`rounded-full px-3 py-1.5 transition-colors ${
+                      activeTab === key
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : key === "export"
+                          ? "bg-background/80 border border-border/80 hover:bg-muted"
+                          : i <= workflowStep
+                            ? "bg-primary/15 text-primary hover:bg-primary/25"
+                            : "bg-background/80 border border-border/80 hover:bg-muted"
+                    }`}
+                  >
+                    {key === "brainstorm"
+                      ? "Brainstorm"
+                      : key === "generate"
+                        ? "Generate"
+                        : key === "artifacts"
+                          ? "Artifacts"
+                          : "Export"}
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-1 text-xs">
-            {(["Brainstorm", "Generate", "Artifacts"] as const).map((label, i) => (
-              <span key={label} className="flex items-center gap-1">
-                {i > 0 && (
-                  <ChevronRight className="w-3.5 h-3.5 text-border shrink-0" />
-                )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTab(
-                      i === 0 ? "brainstorm" : i === 1 ? "generate" : "artifacts"
-                    )
-                  }
-                  className={`rounded-full px-3 py-1 font-medium transition-colors ${
-                    (i === 0 && activeTab === "brainstorm") ||
-                    (i === 1 && activeTab === "generate") ||
-                    (i === 2 && activeTab === "artifacts")
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : i <= workflowStep
-                        ? "bg-primary/10 text-primary hover:bg-primary/15"
-                        : "bg-muted/60 text-muted-foreground hover:bg-muted"
-                  }`}
+          <div className="p-3 sm:p-4">
+            <TabsList className="h-auto w-full flex flex-wrap gap-2 sm:gap-2.5 justify-start rounded-xl bg-background/70 p-2 sm:p-2.5 border border-border/80 shadow-inner">
+              {tabs.map(({ value, label, icon: Icon, badge, workflow, step }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className={`group relative flex min-h-[52px] flex-1 basis-[calc(50%-0.25rem)] sm:basis-0 sm:flex-none items-center justify-center gap-2.5 rounded-xl border-2 border-transparent px-4 sm:px-5 py-3 text-[15px] sm:text-base font-semibold transition-all duration-200
+                    data-[state=active]:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/25
+                    text-foreground/80 hover:bg-muted/90 hover:text-foreground
+                    ${workflow ? "sm:min-w-[9.5rem]" : "sm:min-w-[7.5rem]"}`}
                 >
-                  {label}
-                </button>
-              </span>
-            ))}
+                  {step != null && (
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary
+                      group-data-[state=active]:bg-white/25 group-data-[state=active]:text-primary-foreground"
+                    >
+                      {step}
+                    </span>
+                  )}
+                  <Icon
+                    className="h-5 w-5 shrink-0 opacity-80 group-data-[state=active]:opacity-100"
+                    strokeWidth={2}
+                  />
+                  <span className="whitespace-nowrap">{label}</span>
+                  {badge && (
+                    <span
+                      className={`ml-0.5 inline-flex min-h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold
+                      group-data-[state=active]:bg-white/20 group-data-[state=active]:text-primary-foreground
+                      ${value === "export" ? "bg-emerald-100 text-emerald-800" : "bg-muted text-muted-foreground"}`}
+                    >
+                      {badge}
+                    </span>
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
           </div>
         </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setTab}>
-        <TabsList className="h-auto bg-muted/40 p-1 border border-border/60 w-full justify-start rounded-lg gap-0 mb-6 flex-wrap">
-          {tabs.map(({ value, label, icon: Icon, badge, workflow }) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className={`relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium rounded-md border border-transparent transition-all duration-150
-                data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-border/80
-                text-muted-foreground hover:text-foreground
-                ${workflow ? "data-[state=active]:ring-1 data-[state=active]:ring-primary/20" : ""}`}
-            >
-              <Icon className="w-3.5 h-3.5" strokeWidth={1.8} />
-              {label}
-              {workflow && (
-                <span className="sr-only">workflow step</span>
-              )}
-              {badge && (
-                <span
-                  className={`ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold ${
-                    value === "jira"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {badge}
-                </span>
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
 
         <TabsContent value="overview" className="mt-0">
           <OverviewTab
@@ -284,8 +315,8 @@ export default function ProjectPage({ params }: PageProps) {
           />
         </TabsContent>
 
-        <TabsContent value="jira" className="mt-0">
-          <JiraTab
+        <TabsContent value="export" className="mt-0">
+          <ExportTab
             projectId={id}
             userRole={user?.role ?? "analyst"}
           />

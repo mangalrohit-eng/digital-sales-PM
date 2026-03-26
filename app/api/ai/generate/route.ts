@@ -92,6 +92,51 @@ For each test case provide:
 ---
 
 Cover: happy path, edge cases, negative scenarios, mobile behavior, and accessibility (WCAG 2.1 AA). Use markdown.`,
+
+  screen_layout: (context) => `You are a senior product designer and UX architect for a digital sales / e-commerce web experience.
+
+Using the user stories and flows below, produce a **screen layout specification** suitable for handoff to design tools (Figma) and engineering.
+
+${context}
+
+## Output requirements
+
+### Part A — Markdown (human-readable)
+Include these sections with clear headings:
+## 1. Experience overview
+## 2. Key screens & user journeys (map stories to screens)
+## 3. Desktop layouts (per screen: regions, hierarchy, primary CTAs)
+## 4. Mobile / responsive notes
+## 5. Component inventory (buttons, forms, cards, modals) with suggested naming for design system
+## 6. Spacing & grid (base unit, columns, gutters) — use 8px system
+## 7. Accessibility & states (focus, error, empty, loading)
+
+### Part B — Machine-readable Figma-oriented JSON (required)
+After the markdown, output **one** fenced code block with language \`json\` containing a single JSON object with this shape (fill with real content, no placeholders like "TBD"):
+{
+  "figmaHandoffVersion": "1.0",
+  "document": {
+    "name": "string — initiative title",
+    "frames": [
+      {
+        "name": "string — e.g. Desktop / Checkout",
+        "width": 1440,
+        "height": 900,
+        "layoutMode": "VERTICAL" | "HORIZONTAL",
+        "padding": 24,
+        "itemSpacing": 16,
+        "children": [
+          { "type": "TEXT", "name": "string", "characters": "string", "fontSize": 16, "fontWeight": 400 },
+          { "type": "FRAME", "name": "string", "width": 400, "height": 200, "layoutMode": "VERTICAL", "children": [] }
+        ]
+      }
+    ],
+    "components": [ { "name": "string", "description": "string" } ],
+    "tokens": { "space": { "xs": 4, "sm": 8, "md": 16, "lg": 24 }, "radius": { "sm": 4, "md": 8 } }
+  }
+}
+
+Rules: Valid JSON only inside the fence. RGB in nested objects use decimals 0–1 if you include color. Keep the tree shallow enough to stay under token limits but representative of every major screen.`,
 }
 
 export async function POST(req: NextRequest) {
@@ -123,7 +168,7 @@ export async function POST(req: NextRequest) {
     model: "gpt-4o",
     messages: [{ role: "user", content: PROMPTS[type](context) }],
     temperature: 0.7,
-    max_tokens: 3000,
+    max_tokens: type === "screen_layout" ? 4500 : 3000,
   })
 
   const content = completion.choices[0].message.content ?? ""
