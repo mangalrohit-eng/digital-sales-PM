@@ -7,7 +7,7 @@ import { ArtifactType } from "@/lib/types"
 export const maxDuration = 60
 
 const PROMPTS: Record<ArtifactType, (context: string) => string> = {
-  brd: (context) => `You are a senior business analyst specializing in digital CRO for Spectrum.com, Charter Communications' digital sales platform.
+  brd: (context) => `You are a senior business analyst specializing in digital sales and online funnel optimization for Spectrum.com, Charter Communications' digital sales platform.
 
 Create a comprehensive Business Requirements Document (BRD) for the following initiative:
 
@@ -41,7 +41,7 @@ ${context}
 For each Epic provide:
 **Epic [N]: [Title]**
 - **Description**: 2-3 sentence overview
-- **Business Value**: How this Epic contributes to CRO goals
+- **Business Value**: How this Epic contributes to Digital Sales and conversion goals
 - **Acceptance Criteria**: 3-5 high-level criteria
 - **Story Points**: Fibonacci estimate (13, 21, 34, 55)
 - **Dependencies**: Any dependencies on other Epics

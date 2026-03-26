@@ -27,7 +27,7 @@ interface BrainstormTabProps {
 }
 
 const QUICK_PROMPTS = [
-  "What are the top CRO opportunities for the checkout flow?",
+  "What are the top Digital Sales opportunities for the checkout flow?",
   "Brainstorm ideas to reduce cart abandonment",
   "Suggest A/B tests for the address verification step",
   "How can we improve mobile conversion rates?",
@@ -184,7 +184,7 @@ export function BrainstormTab({
           <div>
             <p className="text-sm font-semibold">AI Brainstorm</p>
             <p className="text-xs text-muted-foreground">
-              Spectrum.com CRO specialist
+              Spectrum.com Digital Sales specialist
             </p>
           </div>
         </div>
@@ -214,7 +214,7 @@ export function BrainstormTab({
               </div>
               <h3 className="font-semibold mb-2">Start brainstorming</h3>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
-                Ask me anything about CRO opportunities for Spectrum.com. I&apos;ll
+                Ask me anything about Digital Sales opportunities for Spectrum.com. I&apos;ll
                 help you generate ideas, identify friction points, and build
                 your hypothesis.
               </p>
@@ -291,7 +291,7 @@ export function BrainstormTab({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about CRO opportunities... (Enter to send, Shift+Enter for new line)"
+            placeholder="Ask about Digital Sales opportunities… (Enter to send, Shift+Enter for new line)"
             className="resize-none min-h-[44px] max-h-[120px] text-sm"
             rows={1}
             disabled={streaming}

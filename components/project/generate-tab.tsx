@@ -114,7 +114,7 @@ function StepCard({
 
     try {
       if (step.type === "brd") {
-        const context = `Initiative: ${projectName}\n\n${croContext || "Digital CRO initiative for Spectrum.com"}`
+        const context = `Initiative: ${projectName}\n\n${croContext || "Digital Sales initiative for Spectrum.com"}`
         setProgress(30)
         const res = await fetch("/api/ai/generate", {
           method: "POST",
@@ -273,7 +273,7 @@ function StepCard({
         if (stories.length === 0) {
           throw new Error("Add user stories before generating screen layouts")
         }
-        const context = `Initiative: ${projectName}\n\nCRO context:\n${croContext || "Digital commerce / CRO initiative"}\n\n---\n\nUser stories:\n\n${stories
+        const context = `Initiative: ${projectName}\n\nDigital Sales context:\n${croContext || "Digital Sales / commerce initiative"}\n\n---\n\nUser stories:\n\n${stories
           .map((s) => `### ${s.title}\n${s.content}`)
           .join("\n\n---\n\n")}`
         setProgress(25)

@@ -208,6 +208,23 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Local workspace */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">Workspace data</CardTitle>
+          <CardDescription className="text-xs">
+            Initiatives and artifacts are stored in this browser only
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Data does not sync across devices or users. For demos and personal
+            drafts this keeps setup simple; a shared team deployment would use a
+            backend database instead.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Demo accounts */}
       <Card>
         <CardHeader className="pb-4">
@@ -228,7 +245,7 @@ export default function SettingsPage() {
               {
                 email: "analyst@demo.app",
                 role: "Analyst",
-                title: "CRO Analyst",
+                title: "Digital Sales Analyst",
                 capabilities: ["Brainstorm", "Generate artifacts", "Submit for review"],
               },
             ].map((account) => (

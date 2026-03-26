@@ -1,6 +1,11 @@
 "use client"
 
-import { Project, Artifact } from "@/lib/types"
+import {
+  Project,
+  Artifact,
+  type ProjectStatus,
+  PROJECT_STATUS_LABELS,
+} from "@/lib/types"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,8 +28,10 @@ import {
   LayoutTemplate,
 } from "lucide-react"
 import { formatDate } from "@/lib/date-utils"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useAppStore } from "@/lib/store"
 import { toast } from "sonner"
 
@@ -35,10 +42,38 @@ interface OverviewTabProps {
   onNavigate?: (tab: string) => void
 }
 
+function statusBadgeClass(status: ProjectStatus) {
+  switch (status) {
+    case "active":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200"
+    case "completed":
+      return "bg-sky-50 text-sky-700 border-sky-200"
+    case "archived":
+      return "bg-slate-100 text-slate-600 border-slate-200"
+    default:
+      return "bg-slate-100 text-slate-600 border-slate-200"
+  }
+}
+
 export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps) {
   const { updateProject } = useAppStore()
   const [editingContext, setEditingContext] = useState(false)
   const [contextValue, setContextValue] = useState(project.cro_context)
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [nameValue, setNameValue] = useState(project.name)
+  const [descriptionValue, setDescriptionValue] = useState(project.description)
+
+  useEffect(() => {
+    setContextValue(project.cro_context)
+    setNameValue(project.name)
+    setDescriptionValue(project.description)
+  }, [
+    project.id,
+    project.cro_context,
+    project.name,
+    project.description,
+    project.status,
+  ])
 
   const brdCount = artifacts.filter((a) => a.type === "brd").length
   const epicCount = artifacts.filter((a) => a.type === "epic").length
@@ -62,28 +97,127 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
     toast.success("Context updated")
   }
 
+  const saveDetails = () => {
+    const name = nameValue.trim()
+    if (!name) {
+      toast.error("Initiative name is required")
+      return
+    }
+    updateProject(project.id, {
+      name,
+      description: descriptionValue.trim(),
+    })
+    setEditingDetails(false)
+    toast.success("Initiative details updated")
+  }
+
+  const onStatusChange = (next: ProjectStatus) => {
+    updateProject(project.id, { status: next })
+    toast.success(`Status set to ${PROJECT_STATUS_LABELS[next]}`)
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Project header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
+      {/* Initiative details */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
-              className={`text-[10px] px-2 py-0.5 h-auto font-medium ${
-                project.status === "active"
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-slate-100 text-slate-600 border-slate-200"
-              }`}
+              className={`text-[10px] px-2 py-0.5 h-auto font-medium ${statusBadgeClass(project.status)}`}
             >
-              {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+              {PROJECT_STATUS_LABELS[project.status]}
             </Badge>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="initiative-status" className="sr-only">
+                Initiative status
+              </Label>
+              <select
+                id="initiative-status"
+                value={project.status}
+                onChange={(e) =>
+                  onStatusChange(e.target.value as ProjectStatus)
+                }
+                className="h-8 rounded-md border border-border bg-background px-2 text-xs font-medium text-foreground"
+              >
+                {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map(
+                  (s) => (
+                    <option key={s} value={s}>
+                      {PROJECT_STATUS_LABELS[s]}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
           </div>
-          <h2 className="text-xl font-bold">{project.name}</h2>
-          {project.description && (
-            <p className="text-muted-foreground mt-1 text-sm max-w-2xl">
-              {project.description}
-            </p>
+
+          {editingDetails ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="init-name" className="text-xs">
+                  Initiative name
+                </Label>
+                <Input
+                  id="init-name"
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  className="font-semibold"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="init-desc" className="text-xs">
+                  Description
+                </Label>
+                <Textarea
+                  id="init-desc"
+                  value={descriptionValue}
+                  onChange={(e) => setDescriptionValue(e.target.value)}
+                  rows={3}
+                  className="text-sm resize-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" className="h-8 text-xs" onClick={saveDetails}>
+                  Save details
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => {
+                    setNameValue(project.name)
+                    setDescriptionValue(project.description)
+                    setEditingDetails(false)
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="text-xl font-bold leading-tight">{project.name}</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs shrink-0"
+                  onClick={() => setEditingDetails(true)}
+                >
+                  <Edit3 className="w-3 h-3" />
+                  Edit
+                </Button>
+              </div>
+              {project.description ? (
+                <p className="text-muted-foreground mt-1 text-sm max-w-2xl leading-relaxed">
+                  {project.description}
+                </p>
+              ) : (
+                <p className="text-muted-foreground mt-1 text-sm italic">
+                  No description. Use Edit to add one.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -212,13 +346,13 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
         ))}
       </div>
 
-      {/* CRO Context */}
+      {/* Digital Sales initiative context */}
       <Card>
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-primary" />
-              <p className="text-sm font-semibold">CRO Context</p>
+              <p className="text-sm font-semibold">Initiative context (Digital Sales)</p>
             </div>
             {!editingContext && (
               <Button
@@ -239,7 +373,7 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
                 onChange={(e) => setContextValue(e.target.value)}
                 rows={5}
                 className="text-sm resize-none"
-                placeholder="Describe the CRO context for this initiative..."
+                placeholder="Describe goals, audience, funnel, KPIs, and constraints for this Digital Sales initiative…"
               />
               <div className="flex gap-2">
                 <Button size="sm" className="h-8 text-xs" onClick={saveContext}>

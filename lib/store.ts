@@ -3,6 +3,7 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 import { Project, Artifact, ChatMessage, Comment } from "./types"
+import { DEMO_SEED_ARTIFACTS, DEMO_SEED_PROJECT } from "./seed-demo-data"
 
 interface AppState {
   projects: Project[]
@@ -31,8 +32,9 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      projects: [],
-      artifacts: [],
+      /* Default until persist rehydrates; empty storage merge also applies seed. */
+      projects: [DEMO_SEED_PROJECT],
+      artifacts: DEMO_SEED_ARTIFACTS,
 
       addProject: (data) => {
         const project: Project = {
@@ -145,6 +147,30 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "charter-digital-sales-store",
+      partialize: (state) => ({
+        projects: state.projects,
+        artifacts: state.artifacts,
+      }),
+      merge: (persistedState, currentState) => {
+        const p = persistedState as
+          | { projects?: Project[]; artifacts?: Artifact[] }
+          | null
+          | undefined
+        const hasProjects = (p?.projects?.length ?? 0) > 0
+        const hasArtifacts = (p?.artifacts?.length ?? 0) > 0
+        if (!hasProjects && !hasArtifacts) {
+          return {
+            ...currentState,
+            projects: [DEMO_SEED_PROJECT],
+            artifacts: DEMO_SEED_ARTIFACTS,
+          }
+        }
+        return {
+          ...currentState,
+          projects: p?.projects ?? currentState.projects,
+          artifacts: p?.artifacts ?? currentState.artifacts,
+        }
+      },
       storage: createJSONStorage(() =>
         typeof window !== "undefined"
           ? localStorage

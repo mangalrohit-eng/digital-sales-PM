@@ -7,6 +7,12 @@ export type ArtifactType =
 export type ArtifactStatus = "draft" | "in_review" | "approved"
 export type ProjectStatus = "active" | "completed" | "archived"
 
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  active: "Active",
+  completed: "Completed",
+  archived: "Archived",
+}
+
 export interface Comment {
   id: string
   artifactId: string

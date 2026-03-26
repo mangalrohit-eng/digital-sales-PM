@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation"
+"use client"
+
+import { InitiativesPanel } from "@/components/dashboard/initiatives-panel"
 
 export default function ProjectsPage() {
-  redirect("/dashboard")
+  return <InitiativesPanel variant="page" />
 }

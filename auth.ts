@@ -16,7 +16,7 @@ const DEMO_USERS = [
     password: "ACN2026",
     name: "Alex M",
     role: "analyst",
-    title: "CRO Analyst",
+    title: "Digital Sales Analyst",
   },
 ]
 

@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Project, Artifact } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -19,8 +21,8 @@ import {
   Trash2,
   Clock,
 } from "lucide-react"
-import Link from "next/link"
 import { formatDistanceToNow } from "@/lib/date-utils"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 
 interface ProjectCardProps {
   project: Project
@@ -50,6 +52,8 @@ const STATUS_CONFIG = {
 }
 
 export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) {
+  const router = useRouter()
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const brdCount = artifacts.filter((a) => a.type === "brd").length
   const epicCount = artifacts.filter((a) => a.type === "epic").length
   const storyCount = artifacts.filter((a) => a.type === "story").length
@@ -57,107 +61,178 @@ export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) 
   const layoutCount = artifacts.filter((a) => a.type === "screen_layout").length
   const approvedCount = artifacts.filter((a) => a.status === "approved").length
   const totalCount = artifacts.length
-  const approvalPct = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0
+  const approvalPct =
+    totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0
   const status = STATUS_CONFIG[project.status]
 
+  const openWorkspace = () => {
+    router.push(`/projects/${project.id}`)
+  }
+
   return (
-    <div className="group relative bg-card rounded-2xl border border-border/70 overflow-hidden card-elevated cursor-pointer">
-      {/* Top accent stripe */}
-      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${status.stripe} opacity-80`} />
+    <>
+      <div
+        role="link"
+        tabIndex={0}
+        onClick={openWorkspace}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            openWorkspace()
+          }
+        }}
+        className="group relative bg-card rounded-2xl border border-border/70 overflow-hidden card-elevated cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      >
+        {/* Top accent stripe */}
+        <div
+          className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${status.stripe} opacity-80`}
+        />
 
-      {/* Card content */}
-      <div className="p-5 pt-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 mb-2">
-              <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                {status.label}
-              </span>
+        {/* Card content */}
+        <div className="p-5 pt-6">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 mb-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                  {status.label}
+                </span>
+              </div>
+              <h3 className="font-semibold text-[14px] text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors duration-150">
+                {project.name}
+              </h3>
             </div>
-            <h3 className="font-semibold text-[14px] text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors duration-150">
-              {project.name}
-            </h3>
-          </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-muted shrink-0 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground hover:text-foreground" />
-              }
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem
-                className="text-destructive cursor-pointer text-[13px] gap-2"
-                onClick={() => onDelete(project.id)}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-muted shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all text-muted-foreground hover:text-foreground z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    aria-label="Initiative actions"
+                  />
+                }
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete initiative
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+                <MoreHorizontal className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem
+                  className="text-destructive cursor-pointer text-[13px] gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setConfirmDeleteOpen(true)
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete initiative
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-        {/* Description */}
-        {project.description && (
-          <p className="text-[13px] text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
-            {project.description}
-          </p>
-        )}
+          {/* Description */}
+          {project.description && (
+            <p className="text-[13px] text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
+              {project.description}
+            </p>
+          )}
 
-        {/* Artifact pills */}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          {[
-            { icon: FileText, count: brdCount, label: "BRD", color: "text-violet-500 bg-violet-50 border-violet-200/70" },
-            { icon: Layers, count: epicCount, label: "Epics", color: "text-blue-500 bg-blue-50 border-blue-200/70" },
-            { icon: BookOpen, count: storyCount, label: "Stories", color: "text-sky-500 bg-sky-50 border-sky-200/70" },
-            { icon: TestTube2, count: testCount, label: "Tests", color: "text-emerald-500 bg-emerald-50 border-emerald-200/70" },
-            { icon: LayoutTemplate, count: layoutCount, label: "Layouts", color: "text-fuchsia-600 bg-fuchsia-50 border-fuchsia-200/70" },
-          ].map(({ icon: Icon, count, label, color }) => (
-            <div
-              key={label}
-              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] font-medium ${color}`}
-            >
-              <Icon className="w-3 h-3" strokeWidth={2} />
-              <span>{count} {label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Approval progress */}
-        {totalCount > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] text-muted-foreground">Approval progress</span>
-              <span className="text-[11px] font-semibold text-foreground">{approvalPct}%</span>
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+          {/* Artifact pills */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {[
+              {
+                icon: FileText,
+                count: brdCount,
+                label: "BRD",
+                color: "text-violet-500 bg-violet-50 border-violet-200/70",
+              },
+              {
+                icon: Layers,
+                count: epicCount,
+                label: "Epics",
+                color: "text-blue-500 bg-blue-50 border-blue-200/70",
+              },
+              {
+                icon: BookOpen,
+                count: storyCount,
+                label: "Stories",
+                color: "text-sky-500 bg-sky-50 border-sky-200/70",
+              },
+              {
+                icon: TestTube2,
+                count: testCount,
+                label: "Tests",
+                color: "text-emerald-500 bg-emerald-50 border-emerald-200/70",
+              },
+              {
+                icon: LayoutTemplate,
+                count: layoutCount,
+                label: "Layouts",
+                color: "text-fuchsia-600 bg-fuchsia-50 border-fuchsia-200/70",
+              },
+            ].map(({ icon: Icon, count, label, color }) => (
               <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
-                style={{ width: `${approvalPct}%` }}
-              />
-            </div>
+                key={label}
+                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] font-medium ${color}`}
+              >
+                <Icon className="w-3 h-3" strokeWidth={2} />
+                <span>
+                  {count} {label}
+                </span>
+              </div>
+            ))}
           </div>
-        )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-            <Clock className="w-3 h-3" />
-            <span>{formatDistanceToNow(project.createdAt)}</span>
-          </div>
-          <Link
-            href={`/projects/${project.id}`}
-            className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:text-primary/80 transition-colors"
+          {/* Approval progress */}
+          {totalCount > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] text-muted-foreground">
+                  Approval progress
+                </span>
+                <span className="text-[11px] font-semibold text-foreground">
+                  {approvalPct}%
+                </span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
+                  style={{ width: `${approvalPct}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div
+            className="flex items-center justify-between pt-1 pointer-events-none"
+            aria-hidden
           >
-            Open workspace
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
+            <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+              <Clock className="w-3 h-3" />
+              <span>{formatDistanceToNow(project.createdAt)}</span>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary">
+              Open workspace
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete this initiative?"
+        description={`“${project.name}” and all of its artifacts will be removed. This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => onDelete(project.id)}
+      />
+    </>
   )
 }

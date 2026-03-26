@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "@/lib/date-utils"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 
 const TYPE_ICONS: Record<ArtifactType, React.ElementType> = {
   brd: FileText,
@@ -159,6 +160,7 @@ function ArtifactDetail({
   const [showComments, setShowComments] = useState(false)
   const [refineFeedback, setRefineFeedback] = useState("")
   const [refining, setRefining] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   const canApprove = userRole === "admin"
   const canSubmitForReview = artifact.status === "draft"
@@ -284,12 +286,24 @@ function ArtifactDetail({
             size="icon"
             variant="ghost"
             className="h-7 w-7 text-muted-foreground hover:text-destructive"
-            onClick={handleDelete}
+            onClick={() => setDeleteConfirmOpen(true)}
+            aria-label="Delete artifact"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete this artifact?"
+        description={`“${artifact.title}” will be removed. Child artifacts under it are removed as well. This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
 
       {/* Scrollable body: flex min-h-0 so preview scrolls inside the pane */}
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4">

@@ -3,24 +3,30 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
-import {
-  LayoutDashboard,
-  FolderKanban,
-  Settings,
-  Activity,
-} from "lucide-react"
+import { APP_NAV_ITEMS } from "@/lib/nav-items"
+import { Activity, AlertCircle } from "lucide-react"
 
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Projects", href: "/projects", icon: FolderKanban },
-  { label: "Settings", href: "/settings", icon: Settings },
-]
+interface KeyStatus {
+  configured: boolean
+  source: "env" | "session" | "none"
+}
 
 export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
-  const user = session?.user as { name?: string; role?: string; title?: string } | undefined
+  const user = session?.user as
+    | { name?: string; role?: string; title?: string }
+    | undefined
+  const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
+
+  useEffect(() => {
+    fetch("/api/settings/key")
+      .then((r) => r.json())
+      .then(setKeyStatus)
+      .catch(() => setKeyStatus({ configured: false, source: "none" }))
+  }, [])
 
   const initials = user?.name
     ?.split(" ")
@@ -28,30 +34,40 @@ export function Sidebar() {
     .join("")
     .toUpperCase() ?? "U"
 
+  const aiReady = keyStatus?.configured === true
+  const aiLoading = keyStatus === null
+
   return (
-    <aside className="fixed inset-y-0 left-0 w-[220px] flex flex-col z-30"
-      style={{ background: "linear-gradient(180deg, oklch(0.165 0.038 253) 0%, oklch(0.145 0.030 253) 100%)" }}
+    <aside
+      className="fixed inset-y-0 left-0 z-30 hidden w-[220px] flex-col md:flex"
+      style={{
+        background:
+          "linear-gradient(180deg, oklch(0.165 0.038 253) 0%, oklch(0.145 0.030 253) 100%)",
+      }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 h-16 shrink-0" style={{ borderBottom: "1px solid oklch(0.26 0.04 253)" }}>
-        <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-primary shrink-0 shadow-md shadow-primary/40">
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white">
-            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      <div
+        className="flex h-16 shrink-0 items-center gap-3 px-5"
+        style={{ borderBottom: "1px solid oklch(0.26 0.04 253)" }}
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-primary shadow-md shadow-primary/40">
+          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-white">
+            <path d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-white/90 leading-tight truncate tracking-tight">
+          <p className="truncate text-[13px] font-semibold leading-tight tracking-tight text-white/90">
             Digital Sales AI
           </p>
-          <p className="text-[10px] text-white/35 truncate mt-0.5">
+          <p className="mt-0.5 truncate text-[10px] text-white/35">
             Charter Communications
           </p>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-5 px-3 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
+        {APP_NAV_ITEMS.map((item) => {
           const isActive =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
@@ -62,23 +78,21 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150",
+                "relative flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-[13px] font-medium transition-all duration-150",
                 isActive
                   ? "text-white"
-                  : "text-white/45 hover:text-white/80 hover:bg-white/5"
+                  : "text-white/45 hover:bg-white/5 hover:text-white/80"
               )}
             >
-              {/* Active left border */}
               {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
+                <span className="absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
               )}
-              {/* Active background */}
               {isActive && (
                 <span className="absolute inset-0 rounded-lg bg-white/8" />
               )}
               <Icon
                 className={cn(
-                  "w-[17px] h-[17px] shrink-0 relative z-10",
+                  "relative z-10 h-[17px] w-[17px] shrink-0",
                   isActive ? "text-primary" : "text-white/35"
                 )}
                 strokeWidth={isActive ? 2 : 1.8}
@@ -90,26 +104,55 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div className="px-3 pb-4 space-y-3 shrink-0" style={{ borderTop: "1px solid oklch(0.26 0.04 253)" }}>
-        {/* AI status */}
-        <div className="flex items-center gap-2.5 pt-3.5 px-1">
-          <Activity className="w-3.5 h-3.5 text-emerald-400/70" />
-          <span className="text-[11px] text-white/30 flex-1">AI services</span>
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_oklch(0.65_0.18_155)]" />
-            <span className="text-[10px] text-emerald-400/70 font-medium">Online</span>
-          </div>
+      <div
+        className="shrink-0 space-y-3 px-3 pb-4"
+        style={{ borderTop: "1px solid oklch(0.26 0.04 253)" }}
+      >
+        <div className="flex items-center gap-2.5 px-1 pt-3.5">
+          {aiLoading ? (
+            <>
+              <Activity className="h-3.5 w-3.5 animate-pulse text-white/30" />
+              <span className="flex-1 text-[11px] text-white/30">
+                Checking AI…
+              </span>
+            </>
+          ) : aiReady ? (
+            <>
+              <Activity className="h-3.5 w-3.5 text-emerald-400/70" />
+              <span className="flex-1 text-[11px] text-white/30">
+                AI key
+              </span>
+              <div className="flex items-center gap-1.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_oklch(0.65_0.18_155)]" />
+                <span className="text-[10px] font-medium text-emerald-400/80">
+                  Ready
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-400/90" />
+              <span className="min-w-0 flex-1 text-[11px] text-amber-200/80">
+                Add OpenAI key in Settings
+              </span>
+            </>
+          )}
         </div>
 
-        {/* User card */}
         {user && (
           <div className="flex items-center gap-2.5 px-1">
-            <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30">
-              <span className="text-[11px] font-bold text-primary">{initials}</span>
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/20">
+              <span className="text-[11px] font-bold text-primary">
+                {initials}
+              </span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-medium text-white/70 truncate leading-tight">{user.name}</p>
-              <p className="text-[10px] text-white/30 truncate leading-tight capitalize">{user.role}</p>
+              <p className="truncate text-[12px] font-medium leading-tight text-white/70">
+                {user.name}
+              </p>
+              <p className="truncate text-[10px] capitalize leading-tight text-white/30">
+                {user.role}
+              </p>
             </div>
           </div>
         )}

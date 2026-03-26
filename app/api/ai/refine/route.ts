@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     screen_layout: "Screen layout (Figma-oriented specification)",
   }
 
-  const prompt = `You are a senior product and engineering writer for Spectrum.com (Charter Communications digital sales / CRO).
+  const prompt = `You are a senior product and engineering writer for Spectrum.com (Charter Communications digital sales).
 
 The user has an existing ${typeLabel[type]} titled: "${title}"
 

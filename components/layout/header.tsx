@@ -3,7 +3,6 @@
 import { signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,16 +11,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, Settings, ChevronRight } from "lucide-react"
-import Link from "next/link"
+import { LogOut, Settings, ChevronRight, Menu } from "lucide-react"
 
 interface HeaderProps {
   userName: string
   userRole: string
   userTitle: string
+  onOpenMobileNav?: () => void
 }
 
-export function Header({ userName, userRole, userTitle }: HeaderProps) {
+export function Header({
+  userName,
+  userRole,
+  userTitle,
+  onOpenMobileNav,
+}: HeaderProps) {
   const router = useRouter()
   const initials = userName
     .split(" ")
@@ -30,14 +34,41 @@ export function Header({ userName, userRole, userTitle }: HeaderProps) {
     .toUpperCase()
 
   return (
-    <header className="fixed top-0 left-[220px] right-0 h-16 bg-background/90 backdrop-blur-md border-b border-border/60 flex items-center justify-between px-6 z-20"
-      style={{ boxShadow: "0 1px 0 oklch(0 0 0 / 0.04), 0 2px 8px oklch(0 0 0 / 0.04)" }}
+    <header
+      className="fixed top-0 right-0 left-0 z-20 flex h-16 items-center justify-between border-b border-border/60 bg-background/90 px-4 backdrop-blur-md md:left-[220px] md:px-6"
+      style={{
+        boxShadow:
+          "0 1px 0 oklch(0 0 0 / 0.04), 0 2px 8px oklch(0 0 0 / 0.04)",
+      }}
     >
-      {/* Charter wordmark */}
-      <div className="flex items-center gap-2">
-        <span className="text-[13px] font-semibold text-foreground/50 tracking-tight">Charter</span>
-        <ChevronRight className="w-3.5 h-3.5 text-border" />
-        <span className="text-[13px] font-semibold text-foreground/80 tracking-tight">Spectrum Digital Sales</span>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {onOpenMobileNav && (
+          <button
+            type="button"
+            onClick={onOpenMobileNav}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background text-foreground hover:bg-muted md:hidden"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" strokeWidth={2} />
+          </button>
+        )}
+        <div className="flex min-w-0 items-center gap-3">
+          <img
+            src="/acn-mark.svg"
+            alt=""
+            width={28}
+            height={30}
+            className="h-7 w-auto shrink-0 object-contain"
+            aria-hidden
+          />
+          <span className="text-[13px] font-semibold text-foreground/50 tracking-tight">
+            Charter
+          </span>
+          <ChevronRight className="hidden shrink-0 text-border sm:block w-3.5 h-3.5" />
+          <span className="truncate text-[13px] font-semibold text-foreground/80 tracking-tight">
+            Spectrum Digital Sales
+          </span>
+        </div>
       </div>
 
       {/* User menu */}
