@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { ArtifactType } from "@/lib/types"
 
+export const maxDuration = 60
+
 const PROMPTS: Record<ArtifactType, (context: string) => string> = {
   brd: (context) => `You are a senior business analyst specializing in digital CRO for Spectrum.com, Charter Communications' digital sales platform.
 

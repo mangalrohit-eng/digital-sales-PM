@@ -3,6 +3,8 @@ import OpenAI from "openai"
 import { NextRequest } from "next/server"
 import { cookies } from "next/headers"
 
+export const maxDuration = 60
+
 const SYSTEM_PROMPT = `You are an expert digital product strategist and CRO (Conversion Rate Optimization) specialist for Spectrum.com, Charter Communications' primary digital sales platform.
 
 Your expertise includes:

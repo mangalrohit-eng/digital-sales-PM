@@ -1,7 +1,3 @@
 {
-  "functions": {
-    "app/api/ai/**": {
-      "maxDuration": 60
-    }
-  }
+  "framework": "nextjs"
 }
