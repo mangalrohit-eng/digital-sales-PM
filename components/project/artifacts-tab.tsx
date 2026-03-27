@@ -556,8 +556,9 @@ export function ArtifactsTab({
           <FileText className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
           <h3 className="font-semibold mb-1">No finalized artifacts yet</h3>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            Generate drafts in the BRD, Epics, Stories, Tests, or Layouts
-            workspace tabs, refine them in chat, then use{" "}
+            Finalize your initiative brief from Discovery, then generate drafts in
+            the BRD, Epics, Stories, Tests, or Layouts workspace tabs, refine them
+            in chat, then use{" "}
             <strong className="font-medium text-foreground">Finalize to library</strong>{" "}
             to add them here.
           </p>

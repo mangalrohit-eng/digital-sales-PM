@@ -436,23 +436,24 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
 
       <Separator />
 
-      {/* Confluence — BRD documentation only; epics/stories export via Jira */}
+      {/* Confluence — initiative brief + BRD; backlog exports via Jira */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="w-4 h-4 text-blue-600" />
-            Confluence (BRD only)
+            Confluence (brief &amp; BRD)
           </CardTitle>
           <p className="text-xs text-muted-foreground font-normal">
-            Optional: paste an approved BRD into a Confluence page as wiki markup or
-            Markdown. Do not use this for epics or stories—those go to Jira.
+            Paste finalized initiative briefs and BRDs into Confluence as wiki markup
+            or Markdown. Approve them in Artifacts first if your workflow requires it.
+            Epics and stories go to Jira, not Confluence.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
           {confluenceArtifacts.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No BRD in the library yet. Finalize a BRD in the workspace, then copy
-              it here if your team keeps requirements in Confluence.
+              No initiative brief or BRD in the library yet. Finalize them from
+              Discovery and the BRD workspace, approve if needed, then copy here.
             </p>
           ) : (
             confluenceArtifacts.map((artifact) => {

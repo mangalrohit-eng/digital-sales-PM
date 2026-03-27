@@ -99,6 +99,10 @@ export default function ProjectPage({ params }: PageProps) {
       ["brd", "epic", "story", "test_case"].includes(a.type)
   ).length
 
+  const draftBriefCount = artifacts.filter(
+    (a) => a.type === "initiative_brief" && a.published === false
+  ).length
+
   const draftWorkspaceCount = (t: (typeof WORKSPACE_AGENT_STEPS)[number]["type"]) =>
     artifacts.filter((a) => a.type === t && a.published === false).length
 
@@ -129,7 +133,7 @@ export default function ProjectPage({ params }: PageProps) {
       value: "brainstorm" as const,
       label: "Discovery",
       icon: MessageSquare,
-      badge: null,
+      badge: draftBriefCount > 0 ? String(draftBriefCount) : null,
       step: 1,
     },
     ...WORKSPACE_AGENT_STEPS.map((s) => ({

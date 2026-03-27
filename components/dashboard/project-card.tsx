@@ -19,6 +19,7 @@ import {
   LayoutTemplate,
   Trash2,
   Clock,
+  Sparkles,
 } from "lucide-react"
 import { formatDistanceToNow } from "@/lib/date-utils"
 import { ConfirmDialog } from "@/components/confirm-dialog"
@@ -52,6 +53,7 @@ const STATUS_CONFIG = {
 
 export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const briefCount = artifacts.filter((a) => a.type === "initiative_brief").length
   const brdCount = artifacts.filter((a) => a.type === "brd").length
   const epicCount = artifacts.filter((a) => a.type === "epic").length
   const storyCount = artifacts.filter((a) => a.type === "story").length
@@ -128,6 +130,12 @@ export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) 
           {/* Artifact pills */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {[
+              {
+                icon: Sparkles,
+                count: briefCount,
+                label: "Brief",
+                color: "text-primary bg-primary/10 border-primary/25",
+              },
               {
                 icon: FileText,
                 count: brdCount,

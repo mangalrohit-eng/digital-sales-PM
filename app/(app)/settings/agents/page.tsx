@@ -23,6 +23,7 @@ import { PROMPT_PLACEHOLDER_HELP } from "@/lib/agent-prompt-build"
 import { createDefaultAgentPrompts } from "@/lib/agent-prompt-defaults"
 
 const GENERATION_ORDER: ArtifactType[] = [
+  "initiative_brief",
   "brd",
   "epic",
   "story",

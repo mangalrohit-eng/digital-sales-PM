@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -11,9 +12,8 @@ import {
   Sparkles,
   RotateCcw,
   User,
-  Copy,
-  Check,
   FileText,
+  CheckCircle2,
 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { ChatMessage } from "@/lib/types"
@@ -91,14 +91,7 @@ function MessageBubble({
   message: ChatMessage
   userName: string
 }) {
-  const [copied, setCopied] = useState(false)
   const isUser = message.role === "user"
-
-  const copyContent = () => {
-    navigator.clipboard.writeText(message.content)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
@@ -117,7 +110,7 @@ function MessageBubble({
       </Avatar>
 
       <div
-        className={`group relative max-w-[80%] ${isUser ? "items-end" : "items-start"} flex flex-col`}
+        className={`relative max-w-[80%] ${isUser ? "items-end" : "items-start"} flex flex-col`}
       >
         {!isUser && (
           <span className="mb-1 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary/90">
@@ -133,19 +126,6 @@ function MessageBubble({
         >
           {message.content}
         </div>
-        {!isUser && (
-          <button
-            onClick={copyContent}
-            className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-          >
-            {copied ? (
-              <Check className="w-3 h-3 text-emerald-500" />
-            ) : (
-              <Copy className="w-3 h-3" />
-            )}
-            {copied ? "Copied" : "Copy"}
-          </button>
-        )}
       </div>
     </div>
   )
@@ -157,12 +137,56 @@ export function BrainstormTab({
   croContext,
   userName,
 }: BrainstormTabProps) {
-  const { getProject, appendChatMessage, clearProjectChat, updateProject } =
-    useAppStore()
+  const {
+    getProject,
+    appendChatMessage,
+    clearProjectChat,
+    updateProject,
+    addArtifact,
+    updateArtifact,
+  } = useAppStore()
+  const allArtifacts = useAppStore((s) => s.artifacts)
   const project = getProject(projectId)
   const messages = project?.chatHistory ?? []
   const description = project?.description?.trim() ?? ""
-  const initiativeBrief = project?.initiativeBrief?.trim() ?? ""
+
+  const briefArtifact = useMemo(
+    () =>
+      allArtifacts.find(
+        (a) => a.projectId === projectId && a.type === "initiative_brief"
+      ),
+    [allArtifacts, projectId]
+  )
+
+  const initiativeBriefText = useMemo(
+    () =>
+      briefArtifact?.content?.trim() ||
+      project?.initiativeBrief?.trim() ||
+      "",
+    [briefArtifact?.content, project?.initiativeBrief]
+  )
+
+  useEffect(() => {
+    const p = useAppStore.getState().getProject(projectId)
+    const hasArtifact = useAppStore
+      .getState()
+      .artifacts.some(
+        (a) => a.projectId === projectId && a.type === "initiative_brief"
+      )
+    if (hasArtifact) return
+    const legacy = p?.initiativeBrief?.trim()
+    if (!legacy) return
+    useAppStore.getState().addArtifact({
+      projectId,
+      parentId: null,
+      type: "initiative_brief",
+      title: `Initiative brief: ${p?.name?.trim() || "Initiative"}`,
+      content: legacy,
+      status: "draft",
+      published: false,
+    })
+    useAppStore.getState().updateProject(projectId, { initiativeBrief: "" })
+  }, [projectId])
 
   const projectContextForApi = useMemo(() => {
     const lines = [`Initiative: ${projectName.trim() || "(unnamed)"}`]
@@ -191,7 +215,6 @@ export function BrainstormTab({
   const [streaming, setStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState("")
   const [briefRefreshing, setBriefRefreshing] = useState(false)
-  const [briefCopied, setBriefCopied] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   /** When false, user scrolled up — do not fight them during streaming / new tokens. */
@@ -227,12 +250,26 @@ export function BrainstormTab({
   const refreshInitiativeBrief = useCallback(
     async (chatMessages: ChatMessage[]) => {
       if (chatMessages.length === 0) {
+        const existing = useAppStore
+          .getState()
+          .artifacts.find(
+            (a) => a.projectId === projectId && a.type === "initiative_brief"
+          )
+        if (existing) {
+          updateArtifact(existing.id, { content: "" })
+        }
         updateProject(projectId, { initiativeBrief: "" })
         return
       }
 
+      const state = useAppStore.getState()
+      const existing = state.artifacts.find(
+        (a) => a.projectId === projectId && a.type === "initiative_brief"
+      )
       const prev =
-        useAppStore.getState().getProject(projectId)?.initiativeBrief ?? ""
+        existing?.content?.trim() ??
+        state.getProject(projectId)?.initiativeBrief?.trim() ??
+        ""
 
       setBriefRefreshing(true)
       try {
@@ -251,7 +288,19 @@ export function BrainstormTab({
         }
         const brief = typeof data.brief === "string" ? data.brief.trim() : ""
         if (brief) {
-          updateProject(projectId, { initiativeBrief: brief })
+          if (existing) {
+            updateArtifact(existing.id, { content: brief })
+          } else {
+            addArtifact({
+              projectId,
+              parentId: null,
+              type: "initiative_brief",
+              title: `Initiative brief: ${projectName.trim() || "Initiative"}`,
+              content: brief,
+              status: "draft",
+              published: false,
+            })
+          }
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Brief update failed"
@@ -260,14 +309,27 @@ export function BrainstormTab({
         setBriefRefreshing(false)
       }
     },
-    [projectId, projectContextForApi, updateProject]
+    [
+      projectId,
+      projectContextForApi,
+      projectName,
+      updateProject,
+      updateArtifact,
+      addArtifact,
+    ]
   )
 
   useEffect(() => {
     const p = useAppStore.getState().getProject(projectId)
     const hist = p?.chatHistory ?? []
     if (hist.length === 0) return
-    if (p?.initiativeBrief?.trim()) return
+    const arts = useAppStore
+      .getState()
+      .artifacts.filter((a) => a.projectId === projectId)
+    const hasBrief = arts.some(
+      (a) => a.type === "initiative_brief" && a.content?.trim()
+    )
+    if (hasBrief || p?.initiativeBrief?.trim()) return
     void refreshInitiativeBrief(hist)
   }, [projectId, refreshInitiativeBrief])
 
@@ -335,12 +397,44 @@ export function BrainstormTab({
     }
   }
 
-  const copyBrief = () => {
-    if (!initiativeBrief) return
-    navigator.clipboard.writeText(initiativeBrief)
-    setBriefCopied(true)
-    setTimeout(() => setBriefCopied(false), 2000)
-    toast.success("Initiative brief copied")
+  const briefPublished = briefArtifact?.published === true
+
+  const finalizeBrief = () => {
+    const text = initiativeBriefText.trim()
+    if (!text) return
+
+    const existing = useAppStore
+      .getState()
+      .artifacts.find(
+        (a) => a.projectId === projectId && a.type === "initiative_brief"
+      )
+
+    if (existing?.published) return
+
+    if (!existing) {
+      addArtifact({
+        projectId,
+        parentId: null,
+        type: "initiative_brief",
+        title: `Initiative brief: ${projectName.trim() || "Initiative"}`,
+        content: text,
+        status: "draft",
+        published: true,
+      })
+    } else {
+      const updates: { published: true; content?: string } = { published: true }
+      if (!existing.content?.trim()) updates.content = text
+      updateArtifact(existing.id, updates)
+    }
+
+    const p = useAppStore.getState().getProject(projectId)
+    if (p?.initiativeBrief?.trim()) {
+      updateProject(projectId, { initiativeBrief: "" })
+    }
+
+    toast.success(
+      "Added to Artifacts — you can continue review and approval there."
+    )
   }
 
   return (
@@ -501,52 +595,80 @@ export function BrainstormTab({
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
           Each message includes this initiative&apos;s name, description, and
-          saved context. The initiative brief on the right updates after each
-          Sage reply and is used when you generate a BRD.
+          saved context. The brief on the right updates after each Sage reply.
+          Use Finalize in the preview header when it is ready to add it to
+          Artifacts; then approve and export to Confluence. BRD generation uses
+          the latest brief content.
         </p>
       </div>
       </div>
 
       {/* Right: initiative brief (mirrors Stories “Preview” column) */}
       <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background lg:col-span-8">
-        <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2 shrink-0">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <FileText className="h-4 w-4 text-primary" strokeWidth={2} />
+        <div className="shrink-0 border-b border-border bg-muted/30 px-3 py-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <div className="flex min-w-0 max-w-full flex-1 items-center gap-2">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <FileText className="h-4 w-4 text-primary" strokeWidth={2} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Preview
+                  </span>
+                  <span className="truncate text-xs font-medium text-foreground/90">
+                    Initiative brief
+                  </span>
+                </div>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  Discovery · BRD input
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Preview
-              </span>
-              <p className="truncate text-[11px] font-medium text-foreground/90">
-                Initiative brief
-              </p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                Lives with discovery · BRD input
-              </p>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+              {briefRefreshing && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Updating
+                </span>
+              )}
+              {initiativeBriefText.trim() && !briefRefreshing && (
+                <>
+                  {briefPublished ? (
+                    <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-500/25 bg-emerald-500/15 px-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200">
+                      <CheckCircle2
+                        className="h-3.5 w-3.5 shrink-0"
+                        strokeWidth={2}
+                      />
+                      Finalized
+                    </span>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] leading-none"
+                    >
+                      Draft
+                    </Badge>
+                  )}
+                </>
+              )}
             </div>
           </div>
-          {briefRefreshing && (
-            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Updating
-            </span>
-          )}
         </div>
         <ScrollArea className="min-h-0 min-w-0 flex-1 px-4 py-3">
-          {!initiativeBrief && !briefRefreshing && messages.length === 0 ? (
+          {!initiativeBriefText && !briefRefreshing && messages.length === 0 ? (
             <p className="text-sm leading-relaxed text-muted-foreground">
               Chat with {AGENT_SAGE.name} to build a concise brief. It refreshes
               after each reply with structured problem, audience, success
-              signals, and open questions—ready for the BRD step.
+              signals, and open questions—ready to finalize and for the BRD step.
             </p>
-          ) : !initiativeBrief && briefRefreshing ? (
+          ) : !initiativeBriefText && briefRefreshing ? (
             <p className="text-sm text-muted-foreground">Drafting brief…</p>
-          ) : initiativeBrief ? (
+          ) : initiativeBriefText ? (
             <div
               className="artifact-content artifact-preview text-sm"
               dangerouslySetInnerHTML={{
-                __html: renderMarkdown(initiativeBrief),
+                __html: renderMarkdown(initiativeBriefText),
               }}
             />
           ) : (
@@ -555,21 +677,28 @@ export function BrainstormTab({
             </p>
           )}
         </ScrollArea>
-        {initiativeBrief && !briefRefreshing && (
-          <div className="shrink-0 border-t border-border bg-muted/15 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {initiativeBriefText.trim() && !briefRefreshing && !briefPublished && (
+          <div className="shrink-0 space-y-2 border-t border-border bg-muted/15 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Button
               type="button"
-              variant="outline"
               className="h-12 w-full gap-2 rounded-xl text-sm font-semibold shadow-sm"
-              onClick={copyBrief}
+              onClick={finalizeBrief}
             >
-              {briefCopied ? (
-                <Check className="h-5 w-5 shrink-0 text-emerald-600" strokeWidth={2} />
-              ) : (
-                <Copy className="h-5 w-5 shrink-0" strokeWidth={2} />
-              )}
-              {briefCopied ? "Copied to clipboard" : "Copy initiative brief"}
+              <CheckCircle2 className="h-5 w-5 shrink-0" strokeWidth={2} />
+              Finalize to library
             </Button>
+            <p className="text-center text-[11px] text-muted-foreground sm:text-left">
+              Same as BRD: adds this brief to Artifacts for review, approval, and
+              Confluence export. BRD generation uses the latest brief content.
+            </p>
+          </div>
+        )}
+        {initiativeBriefText.trim() && !briefRefreshing && briefPublished && (
+          <div className="shrink-0 border-t border-border bg-muted/10 px-3 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <p className="text-[11px] text-muted-foreground">
+              This brief is in the Artifacts library. Open the Artifacts tab to
+              review, approve, or export to Confluence.
+            </p>
           </div>
         )}
       </div>

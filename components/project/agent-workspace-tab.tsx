@@ -297,6 +297,14 @@ export function AgentWorkspaceTab({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected = workspaceItems.find((a) => a.id === selectedId) ?? null
 
+  const [generating, setGenerating] = useState(false)
+  const [genProgress, setGenProgress] = useState(0)
+  const [chatInput, setChatInput] = useState("")
+  const [refining, setRefining] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const sectionCardRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [highlightedSectionIndex, setHighlightedSectionIndex] = useState(0)
+
   useEffect(() => {
     if (workspaceItems.length === 0) {
       setSelectedId(null)
@@ -307,11 +315,10 @@ export function AgentWorkspaceTab({
     }
   }, [workspaceItems, selectedId])
 
-  const [generating, setGenerating] = useState(false)
-  const [genProgress, setGenProgress] = useState(0)
-  const [chatInput, setChatInput] = useState("")
-  const [refining, setRefining] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    setHighlightedSectionIndex(0)
+    sectionCardRefs.current = []
+  }, [selectedId])
 
   const runGenerate = async () => {
     setGenerating(true)
@@ -386,6 +393,36 @@ export function AgentWorkspaceTab({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [selected?.workspaceChat?.length, refining, selected?.id])
+
+  const sectionNavItems = useMemo((): Array<{ title: string; body: string }> => {
+    if (!selected) return []
+    if (selected.type === "epic") {
+      const s = getEpicPreviewSections(selected.content)
+      return s && s.length > 1 ? s : []
+    }
+    if (selected.type === "story") {
+      const s = getStoryPreviewSections(selected.content)
+      return s && s.length > 1 ? s : []
+    }
+    if (selected.type === "test_case") {
+      const s = getTestPreviewSections(selected.content)
+      return s && s.length > 1 ? s : []
+    }
+    if (selected.type === "screen_layout") {
+      const md = screenLayoutMarkdownForPreview(selected.content)
+      if (!md.trim()) return []
+      const sections = parseEpicSections(md)
+      return sections.length > 1 ? sections : []
+    }
+    return []
+  }, [selected])
+
+  useEffect(() => {
+    if (sectionNavItems.length === 0) return
+    setHighlightedSectionIndex((i) =>
+      i >= sectionNavItems.length ? 0 : i
+    )
+  }, [sectionNavItems.length, selected?.id])
 
   if (!canGenerate) {
     const need =
@@ -489,6 +526,27 @@ export function AgentWorkspaceTab({
     testPreviewSections.length > 0
   const showStructuredLayoutSpec =
     selected?.type === "screen_layout" && layoutSpecSections.length > 0
+
+  const jumpToNavLabel =
+    step.type === "epic"
+      ? "Epics in this draft"
+      : step.type === "story"
+        ? "Stories in this draft"
+        : step.type === "test_case"
+          ? "Test cases in this draft"
+          : step.type === "screen_layout"
+            ? "Spec sections in this draft"
+            : "Sections"
+
+  const scrollPreviewToSection = (index: number) => {
+    setHighlightedSectionIndex(index)
+    requestAnimationFrame(() => {
+      sectionCardRefs.current[index]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      })
+    })
+  }
 
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-6xl min-w-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -611,34 +669,88 @@ export function AgentWorkspaceTab({
 
             <div className="flex min-h-0 min-h-[8rem] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-muted/20">
               <p className="shrink-0 border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {step.navLabel} in workspace
+                {workspaceItems.length === 1 && sectionNavItems.length > 1
+                  ? jumpToNavLabel
+                  : `${step.navLabel} in workspace`}
               </p>
               <ScrollArea className="min-h-0 flex-1">
                 <div className="space-y-1 p-2">
-                  {workspaceItems.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => setSelectedId(a.id)}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                        selectedId === a.id
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="line-clamp-2 font-medium">{a.title}</span>
-                        <Badge
-                          variant={a.published ? "secondary" : "outline"}
-                          className={`shrink-0 text-[10px] ${
-                            a.published ? "bg-emerald-500/15 text-emerald-700" : ""
+                  {workspaceItems.length > 1 || sectionNavItems.length <= 1
+                    ? workspaceItems.map((a) => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => setSelectedId(a.id)}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                            selectedId === a.id
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-muted"
                           }`}
                         >
-                          {a.published ? "Finalized" : "Draft"}
-                        </Badge>
-                      </div>
-                    </button>
-                  ))}
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="line-clamp-2 font-medium">{a.title}</span>
+                            <Badge
+                              variant={a.published ? "secondary" : "outline"}
+                              className={`shrink-0 text-[10px] ${
+                                a.published ? "bg-emerald-500/15 text-emerald-700" : ""
+                              }`}
+                            >
+                              {a.published ? "Finalized" : "Draft"}
+                            </Badge>
+                          </div>
+                        </button>
+                      ))
+                    : null}
+
+                  {workspaceItems.length > 1 && sectionNavItems.length > 1 ? (
+                    <div
+                      className="my-2 border-t border-border pt-2"
+                      role="presentation"
+                    />
+                  ) : null}
+
+                  {workspaceItems.length > 1 && sectionNavItems.length > 1 ? (
+                    <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {jumpToNavLabel}
+                    </p>
+                  ) : null}
+
+                  {sectionNavItems.length > 1
+                    ? sectionNavItems.map((section, index) => (
+                        <button
+                          key={`${section.title}-${index}`}
+                          type="button"
+                          onClick={() => scrollPreviewToSection(index)}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                            highlightedSectionIndex === index
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-muted"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="line-clamp-2 font-medium">
+                              {section.title}
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className={`shrink-0 text-[10px] ${
+                                highlightedSectionIndex === index
+                                  ? "border-primary-foreground/25 bg-primary-foreground/15 text-primary-foreground"
+                                  : ""
+                              }`}
+                            >
+                              {step.type === "epic"
+                                ? `Epic ${index + 1}`
+                                : step.type === "story"
+                                  ? `Story ${index + 1}`
+                                  : step.type === "test_case"
+                                    ? `TC ${index + 1}`
+                                    : `${index + 1}`}
+                            </Badge>
+                          </div>
+                        </button>
+                      ))
+                    : null}
                 </div>
               </ScrollArea>
             </div>
@@ -740,12 +852,23 @@ export function AgentWorkspaceTab({
                           Written spec
                         </p>
                         {layoutSpecSections.map((section, index) => (
-                          <WorkspaceSpecCard
+                          <div
                             key={`${section.title}-${index}`}
-                            heading={section.title}
-                            badge={`Section ${index + 1}`}
-                            bodyMd={section.body}
-                          />
+                            ref={(el) => {
+                              sectionCardRefs.current[index] = el
+                            }}
+                            className={`rounded-xl transition-[box-shadow] duration-200 ${
+                              highlightedSectionIndex === index
+                                ? "ring-2 ring-primary/45 ring-offset-2 ring-offset-background"
+                                : ""
+                            }`}
+                          >
+                            <WorkspaceSpecCard
+                              heading={section.title}
+                              badge={`Section ${index + 1}`}
+                              bodyMd={section.body}
+                            />
+                          </div>
                         ))}
                       </div>
                     ) : layoutMarkdownOnly.trim() ? (
@@ -766,12 +889,23 @@ export function AgentWorkspaceTab({
                   epicPreviewSections && (
                     <div className="space-y-3">
                       {epicPreviewSections.map((section, index) => (
-                        <WorkspaceSpecCard
+                        <div
                           key={`${section.title}-${index}`}
-                          heading={section.title}
-                          badge={`Epic ${index + 1}`}
-                          bodyMd={section.body}
-                        />
+                          ref={(el) => {
+                            sectionCardRefs.current[index] = el
+                          }}
+                          className={`rounded-xl transition-[box-shadow] duration-200 ${
+                            highlightedSectionIndex === index
+                              ? "ring-2 ring-primary/45 ring-offset-2 ring-offset-background"
+                              : ""
+                          }`}
+                        >
+                          <WorkspaceSpecCard
+                            heading={section.title}
+                            badge={`Epic ${index + 1}`}
+                            bodyMd={section.body}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -782,12 +916,23 @@ export function AgentWorkspaceTab({
                   storyPreviewSections && (
                     <div className="space-y-3">
                       {storyPreviewSections.map((section, index) => (
-                        <WorkspaceSpecCard
+                        <div
                           key={`${section.title}-${index}`}
-                          heading={section.title}
-                          badge={`Story ${index + 1}`}
-                          bodyMd={section.body}
-                        />
+                          ref={(el) => {
+                            sectionCardRefs.current[index] = el
+                          }}
+                          className={`rounded-xl transition-[box-shadow] duration-200 ${
+                            highlightedSectionIndex === index
+                              ? "ring-2 ring-primary/45 ring-offset-2 ring-offset-background"
+                              : ""
+                          }`}
+                        >
+                          <WorkspaceSpecCard
+                            heading={section.title}
+                            badge={`Story ${index + 1}`}
+                            bodyMd={section.body}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -798,12 +943,23 @@ export function AgentWorkspaceTab({
                   testPreviewSections && (
                     <div className="space-y-3">
                       {testPreviewSections.map((section, index) => (
-                        <WorkspaceSpecCard
+                        <div
                           key={`${section.title}-${index}`}
-                          heading={section.title}
-                          badge={`TC ${index + 1}`}
-                          bodyMd={section.body}
-                        />
+                          ref={(el) => {
+                            sectionCardRefs.current[index] = el
+                          }}
+                          className={`rounded-xl transition-[box-shadow] duration-200 ${
+                            highlightedSectionIndex === index
+                              ? "ring-2 ring-primary/45 ring-offset-2 ring-offset-background"
+                              : ""
+                          }`}
+                        >
+                          <WorkspaceSpecCard
+                            heading={section.title}
+                            badge={`TC ${index + 1}`}
+                            bodyMd={section.body}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}

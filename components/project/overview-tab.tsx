@@ -27,6 +27,7 @@ import {
   Edit3,
   LayoutTemplate,
   Info,
+  Sparkles,
 } from "lucide-react"
 import { formatDate, formatDistanceToNow } from "@/lib/date-utils"
 import { useState, useEffect } from "react"
@@ -178,6 +179,9 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
     project.status,
   ])
 
+  const briefCount = libraryArtifacts.filter(
+    (a) => a.type === "initiative_brief"
+  ).length
   const brdCount = libraryArtifacts.filter((a) => a.type === "brd").length
   const epicCount = libraryArtifacts.filter((a) => a.type === "epic").length
   const storyCount = libraryArtifacts.filter((a) => a.type === "story").length
@@ -224,6 +228,9 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
     toast.success(`Status set to ${PROJECT_STATUS_LABELS[next]}`)
   }
 
+  const briefItems = [...artifacts]
+    .filter((a) => a.type === "initiative_brief")
+    .sort(sortArtifactsNewestFirst)
   const epicItems = [...artifacts]
     .filter((a) => a.type === "epic")
     .sort(sortArtifactsNewestFirst)
@@ -276,7 +283,7 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
           <span className="font-medium text-foreground/90">
             How this workspace works:
           </span>{" "}
-          BRD through Layouts keep{" "}
+          The initiative brief and BRD through Layouts keep{" "}
           <span className="text-foreground/80 font-medium">drafts</span> until
           you <span className="text-foreground/80 font-medium">finalize</span>{" "}
           them.{" "}
@@ -438,8 +445,14 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
       </Card>
 
       {/* Artifact counts */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
+          {
+            icon: Sparkles,
+            label: "Initiative brief",
+            count: briefCount,
+            color: "bg-primary/10 text-primary",
+          },
           { icon: FileText, label: "BRD", count: brdCount, color: "bg-violet-50 text-violet-600" },
           { icon: Layers, label: "Epics", count: epicCount, color: "bg-blue-50 text-blue-600" },
           { icon: BookOpen, label: "Stories", count: storyCount, color: "bg-sky-50 text-sky-600" },
@@ -458,20 +471,45 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
         ))}
       </div>
 
-      {/* One card per generated epic, story, and test */}
-      {(epicItems.length > 0 ||
+      {/* Initiative brief, epics, stories, tests */}
+      {(briefItems.length > 0 ||
+        epicItems.length > 0 ||
         storyItems.length > 0 ||
         testItems.length > 0) && (
         <div className="space-y-8">
           <div>
             <p className="text-sm font-semibold text-foreground mb-1">
-              Generated backlog
+              Discovery &amp; backlog
             </p>
             <p className="text-xs text-muted-foreground">
-              Drafts stay in workspace until you finalize; library items appear
-              in Artifacts.
+              Finalize the initiative brief from Discovery; other drafts stay in
+              workspace until you finalize. Library items appear in Artifacts.
             </p>
           </div>
+
+          {briefItems.length > 0 && (
+            <section className="space-y-3" aria-label="Initiative briefs">
+              <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-primary" strokeWidth={2} />
+                Initiative brief
+                <span className="font-normal normal-case text-muted-foreground/80">
+                  ({briefItems.length})
+                </span>
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {briefItems.map((a) => (
+                  <BacklogArtifactCard
+                    key={a.id}
+                    artifact={a}
+                    accent="border-l-[3px] border-l-primary"
+                    icon={Sparkles}
+                    iconClass="text-primary bg-primary/10"
+                    onOpenArtifacts={onNavigate}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
           {epicItems.length > 0 && (
             <section className="space-y-3" aria-label="Epics">
