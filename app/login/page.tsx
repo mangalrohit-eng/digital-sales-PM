@@ -32,7 +32,7 @@ export default function LoginPage() {
       setError("Invalid username or password. Please try again.")
       setLoading(false)
     } else {
-      router.push("/dashboard")
+      router.push("/welcome")
       router.refresh()
     }
   }

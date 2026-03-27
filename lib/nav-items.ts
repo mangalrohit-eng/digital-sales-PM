@@ -3,6 +3,7 @@ import {
   FolderKanban,
   Settings,
   Sparkles,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react"
 
@@ -13,6 +14,7 @@ export interface AppNavItem {
 }
 
 export const APP_NAV_ITEMS: AppNavItem[] = [
+  { label: "Demo overview", href: "/welcome", icon: BookOpen },
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Initiatives", href: "/projects", icon: FolderKanban },
   { label: "Settings", href: "/settings", icon: Settings },
@@ -21,6 +23,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
 
 /** True when this primary nav item should show as active (includes project workbench under Projects). */
 export function isAppNavItemActive(pathname: string, itemHref: string): boolean {
+  if (itemHref === "/welcome") return pathname === "/welcome"
   if (itemHref === "/dashboard") return pathname === "/dashboard"
   if (itemHref === "/projects") {
     return pathname === "/projects" || /^\/projects\/[^/]+$/.test(pathname)

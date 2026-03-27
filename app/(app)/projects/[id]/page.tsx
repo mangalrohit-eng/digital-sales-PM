@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { WorkbenchFloatingNav } from "@/components/project/workbench-floating-nav"
+import { WorkbenchAgentThinking } from "@/components/project/workbench-agent-thinking"
 
 const CORE_TABS = ["overview", "brainstorm"] as const
 const TAIL_TABS = ["artifacts", "export"] as const
@@ -175,49 +176,52 @@ export default function ProjectPage({ params }: PageProps) {
         <WorkbenchFloatingNav projectName={project.name} tabs={tabs} />
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-[6.875rem] sm:pt-[8.125rem]">
-          <TabsContent value="overview" className={tabPanelClass}>
-            <OverviewTab
-              project={project}
-              artifacts={artifacts}
-              onNavigate={setTab}
-            />
-          </TabsContent>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <TabsContent value="overview" className={tabPanelClass}>
+              <OverviewTab
+                project={project}
+                artifacts={artifacts}
+                onNavigate={setTab}
+              />
+            </TabsContent>
 
-          <TabsContent value="brainstorm" className={tabPanelClass}>
-            <BrainstormTab
-              projectId={id}
-              projectName={project.name}
-              croContext={project.cro_context}
-              userName={user?.name ?? "User"}
-            />
-          </TabsContent>
-
-          {WORKSPACE_AGENT_STEPS.map((s) => (
-            <TabsContent key={s.tab} value={s.tab} className={tabPanelClass}>
-              <AgentWorkspaceTab
+            <TabsContent value="brainstorm" className={tabPanelClass}>
+              <BrainstormTab
                 projectId={id}
                 projectName={project.name}
                 croContext={project.cro_context}
                 userName={user?.name ?? "User"}
-                step={s}
               />
             </TabsContent>
-          ))}
 
-          <TabsContent value="artifacts" className={tabPanelClass}>
-            <ArtifactsTab
-              projectId={id}
-              userRole={user?.role ?? "analyst"}
-              userName={user?.name ?? "User"}
-            />
-          </TabsContent>
+            {WORKSPACE_AGENT_STEPS.map((s) => (
+              <TabsContent key={s.tab} value={s.tab} className={tabPanelClass}>
+                <AgentWorkspaceTab
+                  projectId={id}
+                  projectName={project.name}
+                  croContext={project.cro_context}
+                  userName={user?.name ?? "User"}
+                  step={s}
+                />
+              </TabsContent>
+            ))}
 
-          <TabsContent value="export" className={tabPanelClass}>
-            <ExportTab
-              projectId={id}
-              userRole={user?.role ?? "analyst"}
-            />
-          </TabsContent>
+            <TabsContent value="artifacts" className={tabPanelClass}>
+              <ArtifactsTab
+                projectId={id}
+                userRole={user?.role ?? "analyst"}
+                userName={user?.name ?? "User"}
+              />
+            </TabsContent>
+
+            <TabsContent value="export" className={tabPanelClass}>
+              <ExportTab
+                projectId={id}
+                userRole={user?.role ?? "analyst"}
+              />
+            </TabsContent>
+          </div>
+          <WorkbenchAgentThinking activeTab={activeTab} />
         </div>
       </Tabs>
     </div>

@@ -11,6 +11,10 @@ function isProjectWorkbenchPath(pathname: string | null): boolean {
   return /^\/projects\/[^/]+$/.test(pathname)
 }
 
+function isWelcomePath(pathname: string | null): boolean {
+  return pathname === "/welcome"
+}
+
 interface AppShellProps {
   children: React.ReactNode
   userName: string
@@ -27,10 +31,12 @@ export function AppShell({
   const pathname = usePathname()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const workbench = isProjectWorkbenchPath(pathname)
+  const welcome = isWelcomePath(pathname)
+  const hideChrome = workbench || welcome
 
   return (
     <div className="min-h-screen bg-background">
-      {!workbench && (
+      {!hideChrome && (
         <>
           <Sidebar />
           <MobileNavSheet open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
@@ -43,17 +49,23 @@ export function AppShell({
         </>
       )}
       <div
-        className={`flex min-h-screen flex-col ${workbench ? "min-h-0" : "md:pl-[220px]"}`}
+        className={`flex min-h-screen flex-col ${hideChrome ? "min-h-0" : "md:pl-[220px]"}`}
       >
         <main
           className={`app-bg min-w-0 overflow-x-hidden ${
             workbench
               ? "flex h-dvh max-h-dvh min-h-0 flex-1 flex-col overflow-hidden"
-              : "min-h-0 flex-1"
+              : welcome
+                ? "flex min-h-dvh flex-1 flex-col overflow-y-auto"
+                : "min-h-0 flex-1"
           }`}
         >
           {workbench ? (
             <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-col overflow-hidden px-3 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6">
+              {children}
+            </div>
+          ) : welcome ? (
+            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6 md:max-w-4xl md:py-12">
               {children}
             </div>
           ) : (
