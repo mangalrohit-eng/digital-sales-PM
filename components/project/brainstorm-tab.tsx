@@ -1,25 +1,26 @@
 "use client"
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Progress } from "@/components/ui/progress"
 import {
   Send,
   Loader2,
   Sparkles,
   RotateCcw,
-  User,
-  FileText,
   CheckCircle2,
+  MessageSquare,
+  Clock,
 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
-import { ChatMessage } from "@/lib/types"
-import { AGENT_SAGE, agentInitials } from "@/lib/agents"
+import type { ChatMessage } from "@/lib/types"
+import { AGENT_SAGE } from "@/lib/agents"
 import { toast } from "sonner"
 import { renderMarkdown } from "@/lib/markdown-html"
+import { formatShortRelativePast } from "@/lib/date-utils"
 
 interface BrainstormTabProps {
   projectId: string
@@ -28,107 +29,32 @@ interface BrainstormTabProps {
   userName: string
 }
 
-/** Short chip label + full message (initiative-specific). */
-function initiativeQuickActions(p: {
-  projectName: string
-  description: string
-  croContext: string
-}): { label: string; prompt: string }[] {
-  const name = p.projectName.trim() || "this initiative"
-  const desc = p.description.trim()
-  const ctx = p.croContext.trim()
-  const descQuoted = desc.length > 280 ? `${desc.slice(0, 277)}…` : desc
-  const ctxQuoted = ctx.length > 280 ? `${ctx.slice(0, 277)}…` : ctx
+const DISCOVERY_DESCRIPTION =
+  "Generate a concise initiative brief from context. Refine it in chat, then finalize to the Artifacts library for BRD and downstream steps."
 
-  const actions: { label: string; prompt: string }[] = []
-
-  actions.push({
-    label: "Top opportunities",
-    prompt: `For the initiative "${name}": What are the top 3 opportunities we should prioritize first, what evidence supports each, and what should we explicitly deprioritize?`,
-  })
-
-  if (desc) {
-    actions.push({
-      label: "Stress-test description",
-      prompt: `Initiative: "${name}"\n\nCurrent description:\n${descQuoted}\n\nWhat is unclear, missing, or risky? What should we rewrite or validate before we commit design and engineering?`,
-    })
-  } else {
-    actions.push({
-      label: "Draft description",
-      prompt: `"${name}" does not have a written description yet. Draft a tight one-paragraph initiative description (problem, audience, outcome, and how we will measure success) that we can align the team on.`,
-    })
-  }
-
-  if (ctx) {
-    actions.push({
-      label: "Mine context",
-      prompt: `Initiative: "${name}"\n\nProduct / funnel / business context:\n${ctxQuoted}\n\nGiven this context, what friction points, constraints, or dependencies should we brainstorm—and what mitigations or experiments should we consider?`,
-    })
-  } else {
-    actions.push({
-      label: "Hidden assumptions",
-      prompt: `For "${name}", what implicit assumptions might we be making (users, channels, compliance, data, tech)? Which should we validate first and how?`,
-    })
-  }
-
-  actions.push({
-    label: "Phased roadmap",
-    prompt: `Propose a phased roadmap (discovery → design → build → launch → measure) specifically for "${name}", with PM-level milestones and decision checkpoints.`,
-  })
-
-  actions.push({
-    label: "Open questions",
-    prompt: `List the highest-signal open questions for "${name}", grouped for design, engineering, analytics, and legal/compliance. For each, suggest who should own it and what “resolved” looks like.`,
-  })
-
-  return actions
+function WorkspaceChatRefinedAge({ iso }: { iso: string }) {
+  const [label, setLabel] = useState(() => formatShortRelativePast(iso))
+  useEffect(() => {
+    const tick = () => setLabel(formatShortRelativePast(iso))
+    tick()
+    const id = setInterval(tick, 5000)
+    return () => clearInterval(id)
+  }, [iso])
+  return <span className="tabular-nums">{label}</span>
 }
 
-function MessageBubble({
-  message,
-  userName,
-}: {
-  message: ChatMessage
-  userName: string
-}) {
-  const isUser = message.role === "user"
-
-  return (
-    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-      <Avatar className="w-7 h-7 shrink-0 mt-0.5">
-        <AvatarFallback
-          className={`text-[10px] font-bold tracking-tight ${
-            isUser ? "bg-primary text-white" : "bg-primary/15 text-primary"
-          }`}
-        >
-          {isUser ? (
-            <User className="w-3.5 h-3.5" />
-          ) : (
-            agentInitials(AGENT_SAGE)
-          )}
-        </AvatarFallback>
-      </Avatar>
-
-      <div
-        className={`relative max-w-[80%] ${isUser ? "items-end" : "items-start"} flex flex-col`}
-      >
-        {!isUser && (
-          <span className="mb-1 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary/90">
-            {AGENT_SAGE.name} · {AGENT_SAGE.role}
-          </span>
-        )}
-        <div
-          className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-            isUser
-              ? "bg-primary text-white rounded-tr-sm"
-              : "bg-muted text-foreground rounded-tl-sm"
-          }`}
-        >
-          {message.content}
-        </div>
-      </div>
-    </div>
-  )
+function buildRefineFeedback(
+  latestUserMessage: string,
+  priorChat: ChatMessage[]
+): string {
+  const recent = [...priorChat, { role: "user" as const, content: latestUserMessage }]
+  const transcript = recent
+    .slice(-12)
+    .map((m) =>
+      m.role === "user" ? `User: ${m.content}` : `Assistant: ${m.content}`
+    )
+    .join("\n")
+  return `Conversation (most recent last):\n${transcript}\n\nApply the latest user instruction to the full artifact. Preserve structure unless asked to change it.`
 }
 
 export function BrainstormTab({
@@ -137,34 +63,33 @@ export function BrainstormTab({
   croContext,
   userName,
 }: BrainstormTabProps) {
-  const {
-    getProject,
-    appendChatMessage,
-    clearProjectChat,
-    updateProject,
-    addArtifact,
-    updateArtifact,
-  } = useAppStore()
+  const { getProject, updateProject, updateArtifact } = useAppStore()
   const allArtifacts = useAppStore((s) => s.artifacts)
+
   const project = getProject(projectId)
-  const messages = project?.chatHistory ?? []
   const description = project?.description?.trim() ?? ""
 
-  const briefArtifact = useMemo(
+  const workspaceItems = useMemo(
     () =>
-      allArtifacts.find(
+      allArtifacts.filter(
         (a) => a.projectId === projectId && a.type === "initiative_brief"
       ),
     [allArtifacts, projectId]
   )
 
-  const initiativeBriefText = useMemo(
-    () =>
-      briefArtifact?.content?.trim() ||
-      project?.initiativeBrief?.trim() ||
-      "",
-    [briefArtifact?.content, project?.initiativeBrief]
+  const hasWorkspaceContent = useMemo(
+    () => workspaceItems.some((a) => a.content?.trim()),
+    [workspaceItems]
   )
+
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selected = workspaceItems.find((a) => a.id === selectedId) ?? null
+
+  const [generating, setGenerating] = useState(false)
+  const [genProgress, setGenProgress] = useState(0)
+  const [chatInput, setChatInput] = useState("")
+  const [refining, setRefining] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const p = useAppStore.getState().getProject(projectId)
@@ -188,12 +113,29 @@ export function BrainstormTab({
     useAppStore.getState().updateProject(projectId, { initiativeBrief: "" })
   }, [projectId])
 
+  useEffect(() => {
+    if (workspaceItems.length === 0) {
+      setSelectedId(null)
+      return
+    }
+    const withContent = workspaceItems.filter((a) => a.content?.trim())
+    const preferred =
+      withContent.find((a) => !a.published) ??
+      withContent[0] ??
+      workspaceItems[0]
+    if (!selectedId || !workspaceItems.some((a) => a.id === selectedId)) {
+      setSelectedId(preferred.id)
+    }
+  }, [workspaceItems, selectedId])
+
   const projectContextForApi = useMemo(() => {
     const lines = [`Initiative: ${projectName.trim() || "(unnamed)"}`]
     if (description) {
       lines.push(`Description:\n${description}`)
     } else {
-      lines.push("Description: (not provided yet—offer to help draft one if useful)")
+      lines.push(
+        "Description: (not provided yet—offer to help draft one if useful)"
+      )
     }
     if (croContext.trim()) {
       lines.push(`Product / funnel context:\n${croContext.trim()}`)
@@ -201,507 +143,491 @@ export function BrainstormTab({
     return lines.join("\n\n")
   }, [projectName, description, croContext])
 
-  const quickActions = useMemo(
-    () =>
-      initiativeQuickActions({
-        projectName,
-        description,
-        croContext,
-      }),
-    [projectName, description, croContext]
-  )
-
-  const [input, setInput] = useState("")
-  const [streaming, setStreaming] = useState(false)
-  const [streamingText, setStreamingText] = useState("")
-  const [briefRefreshing, setBriefRefreshing] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  /** When false, user scrolled up — do not fight them during streaming / new tokens. */
-  const stickToBottomRef = useRef(true)
-  const messagesScrollRegionRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
-    const wrap = messagesScrollRegionRef.current
-    if (!wrap) return
-    const viewport = wrap.querySelector(
-      '[data-slot="scroll-area-viewport"]'
-    ) as HTMLElement | null
-    if (!viewport) return
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [selected?.workspaceChat?.length, refining, selected?.id])
 
-    const onScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = viewport
-      const fromBottom = scrollHeight - scrollTop - clientHeight
-      stickToBottomRef.current = fromBottom < 72
-    }
-
-    viewport.addEventListener("scroll", onScroll, { passive: true })
-    onScroll()
-    return () => viewport.removeEventListener("scroll", onScroll)
-  }, [])
-
-  useEffect(() => {
-    if (!stickToBottomRef.current) return
-    bottomRef.current?.scrollIntoView({
-      behavior: streamingText ? "auto" : "smooth",
-    })
-  }, [messages, streamingText])
-
-  const refreshInitiativeBrief = useCallback(
-    async (chatMessages: ChatMessage[]) => {
-      if (chatMessages.length === 0) {
-        const existing = useAppStore
-          .getState()
-          .artifacts.find(
-            (a) => a.projectId === projectId && a.type === "initiative_brief"
-          )
-        if (existing) {
-          updateArtifact(existing.id, { content: "" })
-        }
-        updateProject(projectId, { initiativeBrief: "" })
-        return
-      }
-
-      const state = useAppStore.getState()
-      const existing = state.artifacts.find(
-        (a) => a.projectId === projectId && a.type === "initiative_brief"
-      )
-      const prev =
-        existing?.content?.trim() ??
-        state.getProject(projectId)?.initiativeBrief?.trim() ??
-        ""
-
-      setBriefRefreshing(true)
-      try {
-        const res = await fetch("/api/ai/initiative-brief", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: chatMessages,
-            projectContext: projectContextForApi,
-            previousBrief: prev,
-          }),
-        })
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          throw new Error(data.error ?? "Could not update initiative brief")
-        }
-        const brief = typeof data.brief === "string" ? data.brief.trim() : ""
-        if (brief) {
-          if (existing) {
-            updateArtifact(existing.id, { content: brief })
-          } else {
-            addArtifact({
-              projectId,
-              parentId: null,
-              type: "initiative_brief",
-              title: `Initiative brief: ${projectName.trim() || "Initiative"}`,
-              content: brief,
-              status: "draft",
-              published: false,
-            })
-          }
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Brief update failed"
-        toast.error(msg)
-      } finally {
-        setBriefRefreshing(false)
-      }
-    },
-    [
-      projectId,
-      projectContextForApi,
-      projectName,
-      updateProject,
-      updateArtifact,
-      addArtifact,
-    ]
-  )
-
-  useEffect(() => {
-    const p = useAppStore.getState().getProject(projectId)
-    const hist = p?.chatHistory ?? []
-    if (hist.length === 0) return
-    const arts = useAppStore
-      .getState()
-      .artifacts.filter((a) => a.projectId === projectId)
-    const hasBrief = arts.some(
-      (a) => a.type === "initiative_brief" && a.content?.trim()
-    )
-    if (hasBrief || p?.initiativeBrief?.trim()) return
-    void refreshInitiativeBrief(hist)
-  }, [projectId, refreshInitiativeBrief])
-
-  const sendMessage = async (content: string) => {
-    if (!content.trim() || streaming) return
-
-    stickToBottomRef.current = true
-
-    const userMessage: ChatMessage = { role: "user", content: content.trim() }
-    appendChatMessage(projectId, userMessage)
-    setInput("")
-    setStreaming(true)
-    setStreamingText("")
-
+  const runGenerate = useCallback(async () => {
+    setGenerating(true)
+    setGenProgress(0)
+    const tick = setInterval(() => {
+      setGenProgress((p) => (p < 88 ? p + 9 : p))
+    }, 280)
     try {
-      const res = await fetch("/api/ai/brainstorm", {
+      const res = await fetch("/api/ai/initiative-brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          messages: [],
           projectContext: projectContextForApi,
-          agentPrompts: useAppStore.getState().agentPrompts,
+          previousBrief: "",
         }),
       })
-
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Request failed" }))
-        throw new Error(data.error ?? "Request failed")
+        throw new Error(data.error ?? "Could not generate initiative brief")
       }
+      const brief = typeof data.brief === "string" ? data.brief.trim() : ""
+      if (!brief) throw new Error("Empty brief response")
 
-      const reader = res.body?.getReader()
-      const decoder = new TextDecoder()
-      let fullText = ""
+      const state = useAppStore.getState()
+      const items = state.artifacts.filter(
+        (a) => a.projectId === projectId && a.type === "initiative_brief"
+      )
+      const selId = selectedId
+      const sel = selId ? items.find((a) => a.id === selId) : null
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          const chunk = decoder.decode(value, { stream: true })
-          fullText += chunk
-          setStreamingText(fullText)
+      if (sel && !sel.published) {
+        state.updateArtifact(sel.id, {
+          content: brief,
+          workspaceChat: [],
+          workspaceChatRefinedAt: undefined,
+        })
+      } else if (sel?.published) {
+        const created = state.addArtifact({
+          projectId,
+          parentId: null,
+          type: "initiative_brief",
+          title: `Initiative brief: ${projectName.trim() || "Initiative"}`,
+          content: brief,
+          status: "draft",
+          published: false,
+        })
+        setSelectedId(created.id)
+      } else {
+        const draft = items.find((a) => !a.published)
+        if (draft) {
+          state.updateArtifact(draft.id, {
+            content: brief,
+            workspaceChat: [],
+            workspaceChatRefinedAt: undefined,
+          })
+          setSelectedId(draft.id)
+        } else {
+          const created = state.addArtifact({
+            projectId,
+            parentId: null,
+            type: "initiative_brief",
+            title: `Initiative brief: ${projectName.trim() || "Initiative"}`,
+            content: brief,
+            status: "draft",
+            published: false,
+          })
+          setSelectedId(created.id)
         }
       }
 
-      appendChatMessage(projectId, { role: "assistant", content: fullText })
-      const nextHistory: ChatMessage[] = [
-        ...messages,
-        userMessage,
-        { role: "assistant", content: fullText },
-      ]
-      void refreshInitiativeBrief(nextHistory)
+      const p = state.getProject(projectId)
+      if (p?.initiativeBrief?.trim()) {
+        state.updateProject(projectId, { initiativeBrief: "" })
+      }
+
+      setGenProgress(100)
+      toast.success("Brief draft is ready — refine in chat, then finalize.")
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong"
+      const msg =
+        err instanceof Error ? err.message : "Initiative brief generation failed"
       toast.error(msg)
     } finally {
-      setStreaming(false)
-      setStreamingText("")
+      clearInterval(tick)
+      setGenerating(false)
+      setTimeout(() => setGenProgress(0), 600)
+    }
+  }, [projectContextForApi, projectId, projectName, selectedId])
+
+  const sendChat = async () => {
+    if (!selected || !chatInput.trim() || refining || selected.published) return
+    const text = chatInput.trim()
+    if (!selected.content?.trim()) return
+    setChatInput("")
+    const prior = selected.workspaceChat ?? []
+    const feedback = buildRefineFeedback(text, prior)
+
+    setRefining(true)
+    try {
+      const res = await fetch("/api/ai/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: selected.title,
+          type: selected.type,
+          content: selected.content,
+          feedback,
+          agentPrompts: useAppStore.getState().agentPrompts,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error ?? "Update failed")
+      const next = data.content as string
+      if (!next?.trim()) throw new Error("Empty response")
+
+      const userMsg: ChatMessage = { role: "user", content: text }
+      const asstMsg: ChatMessage = {
+        role: "assistant",
+        content:
+          "I updated the brief from your last message. Review the preview and send another instruction if needed.",
+      }
+      updateArtifact(selected.id, {
+        content: next.trim(),
+        workspaceChat: [...prior, userMsg, asstMsg],
+        workspaceChatRefinedAt: new Date().toISOString(),
+      })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed")
+    } finally {
+      setRefining(false)
     }
   }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage(input)
-    }
-  }
-
-  const briefPublished = briefArtifact?.published === true
 
   const finalizeBrief = () => {
-    const text = initiativeBriefText.trim()
-    if (!text) return
-
-    const existing = useAppStore
-      .getState()
-      .artifacts.find(
-        (a) => a.projectId === projectId && a.type === "initiative_brief"
-      )
-
-    if (existing?.published) return
-
-    if (!existing) {
-      addArtifact({
-        projectId,
-        parentId: null,
-        type: "initiative_brief",
-        title: `Initiative brief: ${projectName.trim() || "Initiative"}`,
-        content: text,
-        status: "draft",
-        published: true,
-      })
-    } else {
-      const updates: { published: true; content?: string } = { published: true }
-      if (!existing.content?.trim()) updates.content = text
-      updateArtifact(existing.id, updates)
-    }
-
+    if (!selected?.content?.trim() || selected.published) return
+    updateArtifact(selected.id, { published: true })
     const p = useAppStore.getState().getProject(projectId)
     if (p?.initiativeBrief?.trim()) {
       updateProject(projectId, { initiativeBrief: "" })
     }
-
     toast.success(
       "Added to Artifacts — you can continue review and approval there."
     )
   }
 
+  const clearWorkspaceChat = () => {
+    if (!selected || selected.published) return
+    updateArtifact(selected.id, {
+      workspaceChat: [],
+      workspaceChatRefinedAt: undefined,
+    })
+    toast.success("Workspace chat cleared")
+  }
+
+  const hasWorkspaceItems = hasWorkspaceContent
+  const generateLabel = hasWorkspaceItems
+    ? "Regenerate initiative brief"
+    : "Generate initiative brief"
+  const generateLabelCompact = hasWorkspaceItems ? "Regenerate" : "Generate"
+
+  const generateButtonCompact = (
+    <Button
+      type="button"
+      onClick={() => void runGenerate()}
+      disabled={generating}
+      size="sm"
+      variant="outline"
+      title={generateLabel}
+      className="h-7 shrink-0 gap-1 rounded-md border-border/80 px-2.5 text-[11px] font-semibold shadow-none sm:h-8 sm:px-3 sm:text-xs"
+    >
+      {generating ? (
+        <>
+          <Loader2 className="h-3 w-3 shrink-0 animate-spin sm:h-3.5 sm:w-3.5" />
+          Generating…
+        </>
+      ) : (
+        <>
+          <Sparkles className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" strokeWidth={2} />
+          {generateLabelCompact}
+        </>
+      )}
+    </Button>
+  )
+
+  const generateButtonEmpty = (
+    <Button
+      type="button"
+      onClick={() => void runGenerate()}
+      disabled={generating}
+      className="h-10 gap-2 rounded-lg px-5 text-sm font-semibold shadow-sm"
+    >
+      {generating ? (
+        <>
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+          Generating…
+        </>
+      ) : (
+        <>
+          <Sparkles className="h-4 w-4 shrink-0" strokeWidth={2} />
+          {generateLabel}
+        </>
+      )}
+    </Button>
+  )
+
   return (
-    <div className="mx-auto grid min-h-0 w-full max-w-6xl min-w-0 flex-1 grid-cols-1 gap-4 overflow-hidden [grid-template-rows:minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-12 lg:grid-rows-1 lg:gap-4">
-      {/* Left: chat — composer fixed at bottom of column; messages scroll */}
-      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background lg:col-span-4">
-        <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2 shrink-0">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Chat
-            </span>
-            <p className="text-[11px] text-muted-foreground truncate max-w-[min(100%,14rem)] sm:max-w-md">
-              {AGENT_SAGE.name} · {projectName}
-            </p>
-          </div>
-          {messages.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 text-xs"
-              onClick={() => {
-                clearProjectChat(projectId)
-                toast.success("Conversation cleared")
-              }}
+    <div className="mx-auto flex min-h-0 w-full max-w-6xl min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="shrink-0 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold leading-tight">Discovery</h2>
+            <Badge
+              variant="secondary"
+              className="h-auto border-0 bg-primary/10 px-2 py-0 text-[10px] font-medium text-primary"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Clear
-            </Button>
-          )}
-        </div>
-
-        <div
-          ref={messagesScrollRegionRef}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-      <ScrollArea className="min-h-0 min-w-0 flex-1 px-4 py-4">
-        <div className="space-y-5">
-          {messages.length === 0 && !streaming && (
-            <div className="text-center py-12">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
-                <Sparkles className="w-7 h-7 text-primary" />
-              </div>
-              <h3 className="font-semibold mb-2">
-                Discovery ·{" "}
-                <span className="text-primary">{projectName}</span>
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6 leading-relaxed">
-                Quick prompts use this initiative&apos;s name
-                {description ? ", description" : ""}
-                {croContext.trim() ? ", and saved context" : ""}. Choose one or
-                write your own, then open BRD or the next workspace tab when you are ready.
-              </p>
-              <div className="flex flex-wrap gap-2 justify-center max-w-full">
-                {quickActions.map(({ label, prompt }, idx) => (
-                  <button
-                    key={`${label}-${idx}`}
-                    type="button"
-                    title={prompt}
-                    onClick={() => sendMessage(prompt)}
-                    className="text-xs px-3 py-2 rounded-full border border-border bg-background hover:bg-accent hover:border-primary/30 transition-all text-muted-foreground hover:text-foreground max-w-[100%] text-left sm:text-center"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <MessageBubble key={i} message={msg} userName={userName} />
-          ))}
-
-          {streaming && streamingText && (
-            <div className="flex gap-3">
-              <Avatar className="w-7 h-7 shrink-0 mt-0.5">
-                <AvatarFallback className="bg-primary/15 text-primary text-[10px] font-bold">
-                  {agentInitials(AGENT_SAGE)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex max-w-[80%] flex-col">
-                <span className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-primary/90">
-                  {AGENT_SAGE.name} · responding
-                </span>
-                <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-muted text-sm leading-relaxed whitespace-pre-wrap">
-                  {streamingText}
-                  <span className="inline-block w-1 h-4 bg-primary/60 ml-0.5 animate-pulse align-middle" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {streaming && !streamingText && (
-            <div className="flex gap-3">
-              <Avatar className="w-7 h-7 shrink-0">
-                <AvatarFallback className="bg-primary/15 text-primary text-[10px] font-bold">
-                  {agentInitials(AGENT_SAGE)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-muted flex flex-col gap-2">
-                <span className="text-xs font-medium text-foreground/80">
-                  {AGENT_SAGE.name} is thinking…
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:0ms]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:150ms]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:300ms]" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
-      </div>
-
-      {/* Input */}
-      <div className="shrink-0 border-t border-border bg-background px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {messages.length > 0 && (
-          <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-thin">
-            {quickActions.slice(0, 3).map(({ label, prompt }, idx) => (
-              <button
-                key={`bar-${label}-${idx}`}
-                type="button"
-                title={prompt}
-                onClick={() => sendMessage(prompt)}
-                disabled={streaming}
-                className="shrink-0 text-xs px-2.5 py-1.5 rounded-full border border-border bg-background hover:bg-accent disabled:opacity-40 transition-all text-muted-foreground hover:text-foreground whitespace-nowrap"
-              >
-                {label}
-              </button>
-            ))}
+              {AGENT_SAGE.name}
+            </Badge>
+            <Badge variant="outline" className="h-auto py-0 text-[10px]">
+              {workspaceItems.length} in workspace
+            </Badge>
           </div>
-        )}
-        <div className="flex gap-3 items-end">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={`Ask about "${projectName}"… (Enter to send, Shift+Enter for new line)`}
-            className="resize-none min-h-[44px] max-h-[120px] text-sm"
-            rows={1}
-            disabled={streaming}
-          />
-          <Button
-            onClick={() => sendMessage(input)}
-            disabled={!input.trim() || streaming}
-            size="icon"
-            className="h-11 w-11 shrink-0"
-          >
-            {streaming ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </Button>
+          {hasWorkspaceItems ? generateButtonCompact : null}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-2">
-          Each message includes this initiative&apos;s name, description, and
-          saved context. The brief on the right updates after each Sage reply.
-          Use Finalize in the preview header when it is ready to add it to
-          Artifacts; then approve and export to Confluence. BRD generation uses
-          the latest brief content.
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          {DISCOVERY_DESCRIPTION}
         </p>
       </div>
-      </div>
 
-      {/* Right: initiative brief (mirrors Stories “Preview” column) */}
-      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background lg:col-span-8">
-        <div className="shrink-0 border-b border-border bg-muted/30 px-3 py-1.5">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            <div className="flex min-w-0 max-w-full flex-1 items-center gap-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <FileText className="h-4 w-4 text-primary" strokeWidth={2} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Preview
+      {generating && (
+        <div className="shrink-0 space-y-1">
+          <Progress value={genProgress} className="h-1.5" />
+          <p className="text-[11px] text-muted-foreground">
+            This may take a few seconds…
+          </p>
+        </div>
+      )}
+
+      {!hasWorkspaceItems ? (
+        <div className="workbench-pane-scroll flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto rounded-xl border border-dashed border-border bg-muted/15 px-6 py-12 text-center sm:py-14">
+          <MessageSquare className="mb-3 h-10 w-10 text-muted-foreground/40" />
+          <p className="mb-1 font-medium">No initiative brief in this workspace</p>
+          <p className="mb-6 max-w-md text-sm text-muted-foreground">
+            Run generate to create a draft from your initiative context. It stays
+            here until you finalize it to the Artifacts library.
+          </p>
+          {generateButtonEmpty}
+        </div>
+      ) : (
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden [grid-template-rows:minmax(0,1fr)_minmax(0,1.2fr)] lg:grid-cols-12 lg:grid-rows-1">
+          <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden lg:col-span-4">
+            <div className="flex min-h-0 min-h-[10rem] flex-[1.15] flex-col overflow-hidden rounded-xl border border-border bg-background">
+              <div className="shrink-0 border-b border-border bg-muted/30 px-4 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Chat
                   </span>
-                  <span className="truncate text-xs font-medium text-foreground/90">
-                    Initiative brief
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Badge
+                      variant="secondary"
+                      className="bg-primary/10 text-[10px] text-primary"
+                    >
+                      Live updates on
+                    </Badge>
+                    {(selected?.workspaceChat?.length ?? 0) > 0 &&
+                      !selected?.published && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-[11px]"
+                          onClick={clearWorkspaceChat}
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Clear
+                        </Button>
+                      )}
+                  </div>
                 </div>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  Discovery · BRD input
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {AGENT_SAGE.name} applies each message directly to this brief
+                  draft.
                 </p>
               </div>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-              {briefRefreshing && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Updating
-                </span>
-              )}
-              {initiativeBriefText.trim() && !briefRefreshing && (
-                <>
-                  {briefPublished ? (
-                    <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-500/25 bg-emerald-500/15 px-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200">
-                      <CheckCircle2
-                        className="h-3.5 w-3.5 shrink-0"
-                        strokeWidth={2}
-                      />
-                      Finalized
-                    </span>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] leading-none"
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="space-y-3 p-3">
+                  {selected?.published ? (
+                    <p className="px-1 text-xs italic text-muted-foreground">
+                      This brief is finalized. Use{" "}
+                      <span className="font-medium not-italic text-foreground/80">
+                        Regenerate
+                      </span>{" "}
+                      above to add a new draft in this workspace.
+                    </p>
+                  ) : (selected?.workspaceChat ?? []).length === 0 ? (
+                    <p className="px-1 text-xs italic text-muted-foreground">
+                      e.g. “Tighten success signals” or “Add risks for checkout
+                      compliance.”
+                    </p>
+                  ) : null}
+                  {(selected?.workspaceChat ?? []).map((m, i) => (
+                    <div
+                      key={`${i}-${m.role}`}
+                      className={`rounded-xl px-3 py-2 text-sm ${
+                        m.role === "user"
+                          ? "ml-4 bg-primary/10"
+                          : "mr-4 bg-muted"
+                      }`}
                     >
-                      Draft
-                    </Badge>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {m.role === "user" ? userName : "Assistant"}
+                      </p>
+                      <p className="whitespace-pre-wrap leading-relaxed">
+                        {m.content}
+                      </p>
+                    </div>
+                  ))}
+                  {refining && (
+                    <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Updating brief…
+                    </div>
                   )}
-                </>
-              )}
+                  <div ref={bottomRef} />
+                </div>
+              </ScrollArea>
+              <div className="flex shrink-0 gap-2 border-t border-border bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <Textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault()
+                      void sendChat()
+                    }
+                  }}
+                  placeholder="Describe edits… (Enter to send, Shift+Enter for line)"
+                  className="min-h-[44px] max-h-[100px] resize-none text-sm"
+                  rows={2}
+                  disabled={!selected || refining || selected?.published === true}
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  className="h-11 w-11 shrink-0"
+                  disabled={
+                    !selected ||
+                    !chatInput.trim() ||
+                    refining ||
+                    selected?.published === true
+                  }
+                  onClick={() => void sendChat()}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
+
+            <div className="flex min-h-0 min-h-[8rem] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-muted/20">
+              <p className="shrink-0 border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Initiative briefs in workspace
+              </p>
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="space-y-1 p-2">
+                  {workspaceItems.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setSelectedId(a.id)}
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                        selectedId === a.id
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="line-clamp-2 font-medium">{a.title}</span>
+                        <Badge
+                          variant={a.published ? "secondary" : "outline"}
+                          className={`shrink-0 text-[10px] ${
+                            a.published ? "bg-emerald-500/15 text-emerald-700" : ""
+                          }`}
+                        >
+                          {a.published ? "Finalized" : "Draft"}
+                        </Badge>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background lg:col-span-8">
+            <div className="shrink-0 border-b border-border bg-muted/30 px-3 py-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Preview
+                  </span>
+                  {selected && (
+                    <span
+                      className="min-w-0 max-w-full truncate text-xs font-medium text-foreground/90 sm:max-w-[min(100%,18rem)] lg:max-w-[min(100%,28rem)]"
+                      title={selected.title}
+                    >
+                      {selected.title}
+                    </span>
+                  )}
+                  {selected?.workspaceChatRefinedAt ? (
+                    <span
+                      className="inline-flex items-center gap-0.5 text-[10px] leading-none text-muted-foreground"
+                      title={`Last updated from workspace chat: ${new Date(
+                        selected.workspaceChatRefinedAt
+                      ).toLocaleString()}`}
+                    >
+                      <Clock
+                        className="h-3 w-3 shrink-0 text-primary/70"
+                        strokeWidth={2}
+                        aria-hidden
+                      />
+                      <span>
+                        Chat <WorkspaceChatRefinedAge iso={selected.workspaceChatRefinedAt} />
+                      </span>
+                    </span>
+                  ) : null}
+                </div>
+                {selected && (
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {selected.published ? (
+                      <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-500/25 bg-emerald-500/15 px-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200">
+                        <CheckCircle2
+                          className="h-3.5 w-3.5 shrink-0"
+                          strokeWidth={2}
+                        />
+                        Finalized
+                      </span>
+                    ) : (
+                      <>
+                        <Badge variant="outline" className="text-[10px] leading-none">
+                          Draft
+                        </Badge>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 shrink-0 gap-1.5 rounded-md px-2.5 text-xs font-semibold"
+                          onClick={finalizeBrief}
+                          disabled={!selected.content?.trim()}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                          Finalize
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="space-y-4 p-4">
+                {selected?.content?.trim() ? (
+                  <div
+                    className="artifact-content artifact-preview text-sm"
+                    dangerouslySetInnerHTML={{
+                      __html: renderMarkdown(selected.content),
+                    }}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Select a brief in the list or generate a new draft.
+                  </p>
+                )}
+              </div>
+            </ScrollArea>
+            {selected?.published && (
+              <div className="shrink-0 border-t border-border bg-muted/10 px-3 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <p className="text-[11px] text-muted-foreground">
+                  This brief is in the Artifacts library. Open the Artifacts tab to
+                  review, approve, or export to Confluence.
+                </p>
+              </div>
+            )}
           </div>
         </div>
-        <ScrollArea className="min-h-0 min-w-0 flex-1 px-4 py-3">
-          {!initiativeBriefText && !briefRefreshing && messages.length === 0 ? (
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Chat with {AGENT_SAGE.name} to build a concise brief. It refreshes
-              after each reply with structured problem, audience, success
-              signals, and open questions—ready to finalize and for the BRD step.
-            </p>
-          ) : !initiativeBriefText && briefRefreshing ? (
-            <p className="text-sm text-muted-foreground">Drafting brief…</p>
-          ) : initiativeBriefText ? (
-            <div
-              className="artifact-content artifact-preview text-sm"
-              dangerouslySetInnerHTML={{
-                __html: renderMarkdown(initiativeBriefText),
-              }}
-            />
-          ) : (
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Your brief will appear here after you chat with {AGENT_SAGE.name}.
-            </p>
-          )}
-        </ScrollArea>
-        {initiativeBriefText.trim() && !briefRefreshing && !briefPublished && (
-          <div className="shrink-0 space-y-2 border-t border-border bg-muted/15 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <Button
-              type="button"
-              className="h-12 w-full gap-2 rounded-xl text-sm font-semibold shadow-sm"
-              onClick={finalizeBrief}
-            >
-              <CheckCircle2 className="h-5 w-5 shrink-0" strokeWidth={2} />
-              Finalize to library
-            </Button>
-            <p className="text-center text-[11px] text-muted-foreground sm:text-left">
-              Same as BRD: adds this brief to Artifacts for review, approval, and
-              Confluence export. BRD generation uses the latest brief content.
-            </p>
-          </div>
-        )}
-        {initiativeBriefText.trim() && !briefRefreshing && briefPublished && (
-          <div className="shrink-0 border-t border-border bg-muted/10 px-3 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <p className="text-[11px] text-muted-foreground">
-              This brief is in the Artifacts library. Open the Artifacts tab to
-              review, approve, or export to Confluence.
-            </p>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   )
 }

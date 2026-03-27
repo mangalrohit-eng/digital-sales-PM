@@ -38,6 +38,10 @@ export interface Artifact {
   status: ArtifactStatus
   comments: Comment[]
   jiraTicketId?: string
+  /** Demo: simulated Figma file sync timestamp (screen layouts). */
+  figmaSyncedAt?: string
+  /** Demo: simulated Confluence page publish timestamp (brief & BRD). */
+  confluenceSyncedAt?: string
   createdAt: string
   updatedAt: string
   /** `false` = draft in agent workspace only until finalized; omit or `true` = visible in Artifacts library */
