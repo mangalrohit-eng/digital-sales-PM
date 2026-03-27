@@ -24,6 +24,33 @@ async function throwIfNotOk(res: Response): Promise<void> {
   throw new Error(t.trim() || "Request failed")
 }
 
+function normalizeStreamClientError(err: unknown): Error {
+  if (err instanceof Error) {
+    const m = err.message.trim().toLowerCase()
+    if (
+      m === "timeout" ||
+      m.includes("timed out") ||
+      m.includes("timeout") ||
+      m.includes("aborted")
+    ) {
+      return new Error(
+        "The connection timed out or was interrupted while loading the AI response. Try again."
+      )
+    }
+    return err
+  }
+  if (typeof err === "string") {
+    const m = err.toLowerCase()
+    if (m === "timeout" || m.includes("timeout")) {
+      return new Error(
+        "The connection timed out or was interrupted while loading the AI response. Try again."
+      )
+    }
+    return new Error(err)
+  }
+  return new Error("Stream read failed")
+}
+
 export async function readStreamingPlainText(
   res: Response,
   onAccumulated: (full: string) => void
@@ -32,15 +59,25 @@ export async function readStreamingPlainText(
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let full = ""
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    full += decoder.decode(value, { stream: true })
+  try {
+    while (true) {
+      let chunk: ReadableStreamReadResult<Uint8Array>
+      try {
+        chunk = await reader.read()
+      } catch (readErr) {
+        throw normalizeStreamClientError(readErr)
+      }
+      const { done, value } = chunk
+      if (done) break
+      full += decoder.decode(value, { stream: true })
+      onAccumulated(full)
+    }
+    full += decoder.decode()
     onAccumulated(full)
+    return full
+  } catch (e) {
+    throw normalizeStreamClientError(e)
   }
-  full += decoder.decode()
-  onAccumulated(full)
-  return full
 }
 
 export async function fetchGenerateStream(

@@ -1,6 +1,9 @@
 import { auth } from "@/auth"
-import OpenAI from "openai"
 import { NextRequest, NextResponse } from "next/server"
+import {
+  createRouteOpenAI,
+  openAiFailureMessage,
+} from "@/lib/openai-route-helpers"
 import { cookies } from "next/headers"
 import { ArtifactType } from "@/lib/types"
 import type { AgentPromptsState } from "@/lib/agent-prompt-defaults"
@@ -14,7 +17,7 @@ import {
   splitWorkbenchPlanningAndDeliverable,
 } from "@/lib/ai-reasoning-deliverable"
 
-export const maxDuration = 60
+export const maxDuration = 120
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -53,17 +56,27 @@ export async function POST(req: NextRequest) {
     buildGenerationUserMessage(type, context, prompts)
   )
 
-  const openai = new OpenAI({ apiKey })
+  const openai = createRouteOpenAI(apiKey)
   const maxTokens = type === "screen_layout" ? 4900 : 3400
 
   if (useStream) {
-    const s = await openai.chat.completions.create({
-      model: "gpt-4o",
-      stream: true,
-      messages: [{ role: "user", content: userMessage }],
-      temperature: 0.7,
-      max_tokens: maxTokens,
-    })
+    let s: Awaited<
+      ReturnType<typeof openai.chat.completions.create>
+    >
+    try {
+      s = await openai.chat.completions.create({
+        model: "gpt-4o",
+        stream: true,
+        messages: [{ role: "user", content: userMessage }],
+        temperature: 0.7,
+        max_tokens: maxTokens,
+      })
+    } catch (e) {
+      return NextResponse.json(
+        { error: openAiFailureMessage(e) },
+        { status: 502 }
+      )
+    }
     const encoder = new TextEncoder()
     const readableStream = new ReadableStream({
       async start(controller) {
@@ -72,8 +85,14 @@ export async function POST(req: NextRequest) {
             const text = chunk.choices[0]?.delta?.content || ""
             if (text) controller.enqueue(encoder.encode(text))
           }
-        } finally {
           controller.close()
+        } catch (err) {
+          const e = new Error(openAiFailureMessage(err))
+          try {
+            controller.error(e)
+          } catch {
+            /* stream already closed */
+          }
         }
       },
     })
@@ -82,12 +101,22 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [{ role: "user", content: userMessage }],
-    temperature: 0.7,
-    max_tokens: maxTokens,
-  })
+  let completion: Awaited<
+    ReturnType<typeof openai.chat.completions.create>
+  >
+  try {
+    completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: userMessage }],
+      temperature: 0.7,
+      max_tokens: maxTokens,
+    })
+  } catch (e) {
+    return NextResponse.json(
+      { error: openAiFailureMessage(e) },
+      { status: 502 }
+    )
+  }
 
   const full = messageContentToString(completion.choices[0].message.content)
   const { planning, deliverable } = splitWorkbenchPlanningAndDeliverable(full)

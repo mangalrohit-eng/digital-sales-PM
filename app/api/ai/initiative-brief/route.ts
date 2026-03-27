@@ -1,6 +1,9 @@
 import { auth } from "@/auth"
-import OpenAI from "openai"
 import { NextRequest, NextResponse } from "next/server"
+import {
+  createRouteOpenAI,
+  openAiFailureMessage,
+} from "@/lib/openai-route-helpers"
 import { cookies } from "next/headers"
 import { messageContentToString } from "@/lib/openai-message-text"
 import {
@@ -9,7 +12,7 @@ import {
 } from "@/lib/ai-reasoning-deliverable"
 import { skeletonBriefFromContext } from "@/lib/initiative-brief-skeleton"
 
-export const maxDuration = 60
+export const maxDuration = 120
 
 const SYSTEM = `You maintain a single "initiative brief" document for a product manager working on Spectrum.com digital sales.
 
@@ -82,19 +85,29 @@ export async function POST(req: NextRequest) {
 
   const userContent = appendWorkbenchPlanningSuffix(userParts.join("\n\n"))
 
-  const openai = new OpenAI({ apiKey })
+  const openai = createRouteOpenAI(apiKey)
   try {
     if (useStream) {
-      const s = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0.35,
-        max_tokens: 1100,
-        stream: true,
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userContent },
-        ],
-      })
+      let s: Awaited<
+        ReturnType<typeof openai.chat.completions.create>
+      >
+      try {
+        s = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          temperature: 0.35,
+          max_tokens: 1100,
+          stream: true,
+          messages: [
+            { role: "system", content: SYSTEM },
+            { role: "user", content: userContent },
+          ],
+        })
+      } catch (e) {
+        return NextResponse.json(
+          { error: openAiFailureMessage(e) },
+          { status: 502 }
+        )
+      }
       const encoder = new TextEncoder()
       const readableStream = new ReadableStream({
         async start(controller) {
@@ -103,8 +116,14 @@ export async function POST(req: NextRequest) {
               const text = chunk.choices[0]?.delta?.content || ""
               if (text) controller.enqueue(encoder.encode(text))
             }
-          } finally {
             controller.close()
+          } catch (err) {
+            const e = new Error(openAiFailureMessage(err))
+            try {
+              controller.error(e)
+            } catch {
+              /* stream already closed */
+            }
           }
         },
       })
@@ -138,7 +157,9 @@ export async function POST(req: NextRequest) {
       planning: planning.trim() || null,
     })
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Brief generation failed"
-    return NextResponse.json({ error: message }, { status: 502 })
+    return NextResponse.json(
+      { error: openAiFailureMessage(e) },
+      { status: 502 }
+    )
   }
 }

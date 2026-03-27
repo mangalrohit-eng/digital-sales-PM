@@ -39,6 +39,7 @@ export default function SettingsPage() {
     fetch("/api/settings/key")
       .then((r) => r.json())
       .then(setKeyStatus)
+      .catch(() => setKeyStatus({ configured: false, source: "none" }))
   }, [])
 
   const saveKey = async () => {

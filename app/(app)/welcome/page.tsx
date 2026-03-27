@@ -14,16 +14,8 @@ import {
 import {
   ArrowRight,
   CheckCircle2,
-  Layers,
   ShieldAlert,
-  Target,
 } from "lucide-react"
-
-const purpose = [
-  "Experience the intended rhythm of work: initiative framing through structured artifacts and handoff-style export.",
-  "Align stakeholders on a shared vision for a digital sales program workspace—not on every backend integration being live today.",
-  "Ground the conversation in Spectrum.com digital sales context: ideation, requirements, and delivery-ready outputs.",
-]
 
 const whatWorks = [
   "Program dashboard, initiatives list, and per-initiative workbench (discovery through export).",
@@ -38,14 +30,6 @@ const constraints = [
   "Not connected to production Charter systems, code repositories, Figma, Confluence, or enterprise search.",
   "Demo credentials only; not a security or access-control model for production.",
   "AI features depend on your own API configuration and provider limits.",
-]
-
-const planned = [
-  "Deep links and sync with Jira, ADO, or similar delivery tools.",
-  "Figma (or design-system) integration for specs and handoff.",
-  "Confluence / wiki and knowledge-base grounding for requirements and reuse.",
-  "Repository and documentation awareness (code, APIs, runbooks) in the workbench.",
-  "Enterprise auth, tenancy, audit trails, and operational hardening.",
 ]
 
 const listClass =
@@ -98,52 +82,6 @@ export default function WelcomePage() {
           </div>
         </div>
       </header>
-
-      <Card className="border-foreground/10 shadow-sm">
-        <CardHeader className="border-b border-border/80 pb-4">
-          <div className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Target className="size-4" strokeWidth={2} />
-            </span>
-            <div>
-              <CardTitle className="text-base">Purpose</CardTitle>
-              <CardDescription className="text-[13px]">
-                Why this demo exists and how to use it.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <ul className={listClass}>
-            {purpose.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
-
-      <Card className="border-foreground/10 shadow-sm">
-        <CardHeader className="border-b border-border/80 pb-4">
-          <div className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Layers className="size-4" strokeWidth={2} />
-            </span>
-            <div>
-              <CardTitle className="text-base">Not live yet (planned direction)</CardTitle>
-              <CardDescription className="text-[13px]">
-                Natural extensions for a production-grade program workspace.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <ul className={listClass}>
-            {planned.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
 
       <div className="grid gap-5 lg:grid-cols-2 lg:items-stretch">
         <Card className="border-foreground/10 shadow-sm">

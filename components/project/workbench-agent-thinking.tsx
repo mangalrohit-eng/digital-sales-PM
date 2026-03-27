@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
   BookMarked,
@@ -18,10 +17,8 @@ import {
   PenTool,
   SlidersHorizontal,
   Target,
-  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { useWorkbenchAgentBusy } from "@/components/project/workbench-agent-busy-context"
 import {
   ACTIVITY_HEADLINE,
@@ -92,31 +89,15 @@ export function WorkbenchAgentThinking({
   activeTab: _activeTab,
   className,
 }: WorkbenchAgentThinkingProps) {
-  const {
-    busyCount,
-    activeDetail,
-    recentPlanning,
-    dismissRecentPlanning,
-  } = useWorkbenchAgentBusy()
+  const { busyCount, activeDetail } = useWorkbenchAgentBusy()
 
   const inFlight = busyCount > 0 && activeDetail != null
-  const completed = !inFlight && recentPlanning != null
 
-  useEffect(() => {
-    if (!completed || !recentPlanning) return
-    const id = window.setTimeout(() => dismissRecentPlanning(), 5000)
-    return () => window.clearTimeout(id)
-  }, [completed, recentPlanning, dismissRecentPlanning])
+  if (!inFlight) return null
 
-  if (!inFlight && !completed) return null
-
-  const headline = inFlight
-    ? ACTIVITY_HEADLINE[activeDetail!.kind]
-    : recentPlanning!.headline
-  const planningText = inFlight
-    ? (activeDetail!.planning?.trim() ?? "")
-    : recentPlanning!.planning
-  const sources = inFlight ? activeDetail!.sources : recentPlanning!.sources
+  const headline = ACTIVITY_HEADLINE[activeDetail!.kind]
+  const planningText = activeDetail!.planning?.trim() ?? ""
+  const sources = activeDetail!.sources
 
   const showThinking = inFlight && !planningText
 
@@ -128,19 +109,11 @@ export function WorkbenchAgentThinking({
       className={cn(
         "shrink-0 border-t border-border/70 bg-background/92 px-3 py-2.5 shadow-[0_-8px_28px_-14px_oklch(0_0_0/0.14)] backdrop-blur-md sm:px-4 sm:py-3",
         "pb-[max(0.625rem,env(safe-area-inset-bottom))]",
-        completed && "border-emerald-500/20 bg-emerald-500/[0.04]",
         className
       )}
     >
       <div className="mx-auto flex max-w-6xl min-w-0 items-start gap-2.5 sm:gap-3">
-        <div
-          className={cn(
-            "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border text-primary",
-            inFlight
-              ? "border-primary/20 bg-primary/10"
-              : "border-emerald-500/25 bg-emerald-500/10"
-          )}
-        >
+        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
           <BrainCircuit className="size-4" strokeWidth={2} aria-hidden />
         </div>
         <div className="min-w-0 flex-1 space-y-2 pt-0.5">
@@ -150,38 +123,15 @@ export function WorkbenchAgentThinking({
                 Request status
               </p>
               <span
-                className={cn(
-                  "rounded-md border px-2 py-0.5 text-[10px] font-semibold sm:text-[11px]",
-                  inFlight
-                    ? "border-primary/25 bg-primary/8 text-primary"
-                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
-                )}
-                title={inFlight ? "Operation in progress" : "Last request finished"}
+                className="rounded-md border border-primary/25 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary sm:text-[11px]"
+                title="Operation in progress"
               >
                 {headline}
               </span>
-              {inFlight ? (
-                <span className="rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground sm:text-[11px]">
-                  In progress
-                </span>
-              ) : (
-                <span className="rounded-md border border-emerald-500/25 bg-emerald-500/5 px-2 py-0.5 text-[10px] font-medium text-emerald-800/90 dark:text-emerald-200/90 sm:text-[11px]">
-                  Completed
-                </span>
-              )}
+              <span className="rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground sm:text-[11px]">
+                In progress
+              </span>
             </div>
-            {completed ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                onClick={() => dismissRecentPlanning()}
-                aria-label="Dismiss planning panel"
-              >
-                <X className="size-3.5" strokeWidth={2} aria-hidden />
-              </Button>
-            ) : null}
           </div>
 
           <div>

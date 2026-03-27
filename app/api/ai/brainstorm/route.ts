@@ -1,6 +1,9 @@
 import { auth } from "@/auth"
-import OpenAI from "openai"
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
+import {
+  createRouteOpenAI,
+  openAiFailureMessage,
+} from "@/lib/openai-route-helpers"
 import { NextRequest } from "next/server"
 import { cookies } from "next/headers"
 import type { AgentPromptsState } from "@/lib/agent-prompt-defaults"
@@ -9,7 +12,7 @@ import {
   resolveAgentPrompts,
 } from "@/lib/agent-prompt-build"
 
-export const maxDuration = 60
+export const maxDuration = 120
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -41,15 +44,25 @@ export async function POST(req: NextRequest) {
   const prompts = resolveAgentPrompts(promptsPartial ?? null)
   const systemContent = buildSageSystemContent(projectContext, prompts)
 
-  const openai = new OpenAI({ apiKey })
+  const openai = createRouteOpenAI(apiKey)
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
-    stream: true,
-    messages: [{ role: "system", content: systemContent }, ...messages],
-    temperature: 0.8,
-    max_tokens: 1500,
-  })
+  let stream: Awaited<
+    ReturnType<typeof openai.chat.completions.create>
+  >
+  try {
+    stream = await openai.chat.completions.create({
+      model: "gpt-4o",
+      stream: true,
+      messages: [{ role: "system", content: systemContent }, ...messages],
+      temperature: 0.8,
+      max_tokens: 1500,
+    })
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ error: openAiFailureMessage(e) }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    )
+  }
 
   const encoder = new TextEncoder()
   const readableStream = new ReadableStream({
@@ -61,8 +74,14 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encoder.encode(text))
           }
         }
-      } finally {
         controller.close()
+      } catch (err) {
+        const e = new Error(openAiFailureMessage(err))
+        try {
+          controller.error(e)
+        } catch {
+          /* stream already closed */
+        }
       }
     },
   })
