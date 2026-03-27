@@ -1,16 +1,16 @@
 import type { Artifact, Project } from "./types"
 
 /** Stable IDs so dashboard links stay valid after refresh. */
-export const DEMO_PROJECT_ID = "demo-seed-project-001"
+export const SEED_PROJECT_ID = "demo-seed-project-001"
 
 const created = "2025-02-10T14:00:00.000Z"
 const updated = "2025-02-18T10:30:00.000Z"
 
-export const DEMO_SEED_PROJECT: Project = {
-  id: DEMO_PROJECT_ID,
-  name: "Checkout conversion uplift — demo initiative",
+export const SEED_PROJECT: Project = {
+  id: SEED_PROJECT_ID,
+  name: "Checkout conversion uplift — Q3",
   description:
-    "Pre-loaded example: streamline guest checkout, reduce abandonment, and align UX with mobile-first journeys.",
+    "Streamline guest checkout, reduce abandonment, and align UX with mobile-first journeys.",
   cro_context:
     "Primary KPI: +2.5% checkout completion within 90 days. Focus on address verification, payment trust signals, and one-page vs multi-step test. Audience: new internet shoppers on mobile Safari and Chrome.",
   owner: "Alex M",
@@ -33,14 +33,50 @@ export const DEMO_SEED_PROJECT: Project = {
 
 const md = (title: string, body: string) => `## ${title}\n\n${body}\n`
 
-export const DEMO_SEED_ARTIFACTS: Artifact[] = [
+export const SEED_ARTIFACTS: Artifact[] = [
+  {
+    id: "demo-seed-initiative-brief",
+    projectId: SEED_PROJECT_ID,
+    parentId: null,
+    type: "initiative_brief",
+    title: "Initiative brief: Checkout conversion uplift — Q3",
+    status: "approved",
+    published: true,
+    comments: [],
+    content: `## Problem / outcome
+
+Improve mobile checkout completion for new internet shoppers by reducing abandonment at payment and address steps.
+
+## Audience & context
+
+New internet customers on mobile Safari and Chrome; initiative aligns with Q3 digital sales funnel work.
+
+## Success signals
+
+Target +2.5% checkout completion within 90 days; monitor funnel telemetry on address verification and pay steps.
+
+## Bets & scope hints
+
+Quick wins: earlier price/ETA clarity, fewer address fields with smart defaults, stronger trust before pay.
+
+## Risks & dependencies
+
+Depends on payments, address/serviceability data quality, and experiment capacity.
+
+## Open questions
+
+One-page vs multi-step checkout test design; ownership for analytics instrumentation.`,
+    createdAt: created,
+    updatedAt: updated,
+  },
   {
     id: "demo-seed-brd",
-    projectId: DEMO_PROJECT_ID,
+    projectId: SEED_PROJECT_ID,
     parentId: null,
     type: "brd",
-    title: "BRD: Checkout conversion uplift — demo initiative",
+    title: "BRD: Checkout conversion uplift — Q3",
     status: "approved",
+    published: true,
     jiraTicketId: "SPEC-1042",
     comments: [
       {
@@ -61,11 +97,12 @@ export const DEMO_SEED_ARTIFACTS: Artifact[] = [
   },
   {
     id: "demo-seed-epic-1",
-    projectId: DEMO_PROJECT_ID,
+    projectId: SEED_PROJECT_ID,
     parentId: "demo-seed-brd",
     type: "epic",
     title: "Epic: Streamline address & delivery clarity",
     status: "approved",
+    published: true,
     jiraTicketId: "SPEC-1043",
     comments: [],
     content: md(
@@ -77,11 +114,12 @@ export const DEMO_SEED_ARTIFACTS: Artifact[] = [
   },
   {
     id: "demo-seed-epic-2",
-    projectId: DEMO_PROJECT_ID,
+    projectId: SEED_PROJECT_ID,
     parentId: "demo-seed-brd",
     type: "epic",
     title: "Epic: Payment trust & friction",
     status: "in_review",
+    published: true,
     comments: [],
     content: md(
       "Description",
@@ -92,11 +130,12 @@ export const DEMO_SEED_ARTIFACTS: Artifact[] = [
   },
   {
     id: "demo-seed-story-1",
-    projectId: DEMO_PROJECT_ID,
+    projectId: SEED_PROJECT_ID,
     parentId: "demo-seed-epic-1",
     type: "story",
     title: "Story: Show serviceability banner after ZIP entry",
     status: "approved",
+    published: true,
     jiraTicketId: "SPEC-1044",
     comments: [],
     content: md(
@@ -108,11 +147,12 @@ export const DEMO_SEED_ARTIFACTS: Artifact[] = [
   },
   {
     id: "demo-seed-story-2",
-    projectId: DEMO_PROJECT_ID,
+    projectId: SEED_PROJECT_ID,
     parentId: "demo-seed-epic-1",
     type: "story",
     title: "Story: Autocomplete address with manual override",
     status: "draft",
+    published: true,
     comments: [],
     content: md(
       "User story",
@@ -123,11 +163,12 @@ export const DEMO_SEED_ARTIFACTS: Artifact[] = [
   },
   {
     id: "demo-seed-story-3",
-    projectId: DEMO_PROJECT_ID,
+    projectId: SEED_PROJECT_ID,
     parentId: "demo-seed-epic-2",
     type: "story",
     title: "Story: Sticky order summary on mobile pay step",
     status: "in_review",
+    published: true,
     comments: [],
     content: md(
       "User story",
@@ -138,11 +179,12 @@ export const DEMO_SEED_ARTIFACTS: Artifact[] = [
   },
   {
     id: "demo-seed-tc-1",
-    projectId: DEMO_PROJECT_ID,
+    projectId: SEED_PROJECT_ID,
     parentId: "demo-seed-story-1",
     type: "test_case",
     title: "Tests: Show serviceability banner after ZIP entry",
     status: "approved",
+    published: true,
     comments: [],
     content: md(
       "TC-1",
@@ -153,11 +195,12 @@ export const DEMO_SEED_ARTIFACTS: Artifact[] = [
   },
   {
     id: "demo-seed-tc-2",
-    projectId: DEMO_PROJECT_ID,
+    projectId: SEED_PROJECT_ID,
     parentId: "demo-seed-story-2",
     type: "test_case",
     title: "Tests: Autocomplete address with manual override",
     status: "draft",
+    published: true,
     comments: [],
     content: md(
       "TC-1 (draft)",
@@ -168,15 +211,16 @@ export const DEMO_SEED_ARTIFACTS: Artifact[] = [
   },
   {
     id: "demo-seed-layout",
-    projectId: DEMO_PROJECT_ID,
+    projectId: SEED_PROJECT_ID,
     parentId: null,
     type: "screen_layout",
     title: "Screen layout: Mobile checkout (ZIP → pay)",
     status: "draft",
+    published: true,
     comments: [],
     content: `## Frames\n\n- **Cart** — primary CTA, trust row.\n- **Address** — ZIP first, serviceability banner slot.\n- **Payment** — sticky summary, card fields, legal copy.\n\n\`\`\`json\n${JSON.stringify(
       {
-        figmaImportVersion: "1.0-demo",
+        figmaImportVersion: "1.0",
         document: {
           name: "Mobile checkout",
           frames: [

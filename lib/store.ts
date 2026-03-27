@@ -1,9 +1,14 @@
 "use client"
 
 import { create } from "zustand"
-import { persist, createJSONStorage } from "zustand/middleware"
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware"
 import { Project, Artifact, ChatMessage, Comment } from "./types"
-import { DEMO_SEED_ARTIFACTS, DEMO_SEED_PROJECT } from "./seed-demo-data"
+import { SEED_ARTIFACTS, SEED_PROJECT } from "./seed-demo-data"
+import {
+  createDefaultAgentPrompts,
+  type AgentPromptsState,
+} from "./agent-prompt-defaults"
+import { resolveAgentPrompts } from "./agent-prompt-build"
 
 interface AppState {
   projects: Project[]
@@ -27,14 +32,88 @@ interface AppState {
   ) => void
   appendChatMessage: (projectId: string, message: ChatMessage) => void
   clearProjectChat: (projectId: string) => void
+  agentPrompts: AgentPromptsState
+  setAgentPrompts: (next: AgentPromptsState) => void
+  patchAgentPrompts: (patch: {
+    sage?: Partial<AgentPromptsState["sage"]>
+    generation?: Partial<AgentPromptsState["generation"]>
+    quill?: string
+  }) => void
+  resetAgentPrompts: () => void
+}
+
+/**
+ * Zustand persist JSON.parse's localStorage values; truncated or hand-edited
+ * data throws SyntaxError("Unexpected end of input"). Drop bad entries so the
+ * app boots with merge fallbacks + seed data.
+ */
+function charterPersistStorage(): StateStorage {
+  if (typeof window === "undefined") {
+    return {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+    }
+  }
+  return {
+    getItem: (name) => {
+      try {
+        const raw = localStorage.getItem(name)
+        if (raw == null) return null
+        JSON.parse(raw)
+        return raw
+      } catch {
+        try {
+          localStorage.removeItem(name)
+        } catch {
+          /* ignore */
+        }
+        return null
+      }
+    },
+    setItem: (name, value) => {
+      try {
+        localStorage.setItem(name, value)
+      } catch {
+        /* quota or private mode */
+      }
+    },
+    removeItem: (name) => {
+      try {
+        localStorage.removeItem(name)
+      } catch {
+        /* ignore */
+      }
+    },
+  }
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       /* Default until persist rehydrates; empty storage merge also applies seed. */
-      projects: [DEMO_SEED_PROJECT],
-      artifacts: DEMO_SEED_ARTIFACTS,
+      projects: [SEED_PROJECT],
+      artifacts: SEED_ARTIFACTS,
+      agentPrompts: createDefaultAgentPrompts(),
+
+      setAgentPrompts: (next) => set({ agentPrompts: next }),
+
+      patchAgentPrompts: (patch) =>
+        set((s) => {
+          const cur = s.agentPrompts
+          return {
+            agentPrompts: {
+              sage: patch.sage ? { ...cur.sage, ...patch.sage } : cur.sage,
+              generation: patch.generation
+                ? { ...cur.generation, ...patch.generation }
+                : cur.generation,
+              quill: patch.quill !== undefined ? patch.quill : cur.quill,
+            },
+          }
+        }),
+
+      resetAgentPrompts: () =>
+        set({ agentPrompts: createDefaultAgentPrompts() }),
 
       addProject: (data) => {
         const project: Project = {
@@ -140,7 +219,20 @@ export const useAppStore = create<AppState>()(
       clearProjectChat: (projectId) => {
         set((state) => ({
           projects: state.projects.map((p) =>
-            p.id === projectId ? { ...p, chatHistory: [] } : p
+            p.id === projectId
+              ? { ...p, chatHistory: [], initiativeBrief: "" }
+              : p
+          ),
+          artifacts: state.artifacts.map((a) =>
+            a.projectId === projectId && a.type === "initiative_brief"
+              ? {
+                  ...a,
+                  content: "",
+                  published: false,
+                  status: "draft",
+                  updatedAt: new Date().toISOString(),
+                }
+              : a
           ),
         }))
       },
@@ -150,10 +242,15 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         projects: state.projects,
         artifacts: state.artifacts,
+        agentPrompts: state.agentPrompts,
       }),
       merge: (persistedState, currentState) => {
         const p = persistedState as
-          | { projects?: Project[]; artifacts?: Artifact[] }
+          | {
+              projects?: Project[]
+              artifacts?: Artifact[]
+              agentPrompts?: AgentPromptsState
+            }
           | null
           | undefined
         const hasProjects = (p?.projects?.length ?? 0) > 0
@@ -161,25 +258,19 @@ export const useAppStore = create<AppState>()(
         if (!hasProjects && !hasArtifacts) {
           return {
             ...currentState,
-            projects: [DEMO_SEED_PROJECT],
-            artifacts: DEMO_SEED_ARTIFACTS,
+            projects: [SEED_PROJECT],
+            artifacts: SEED_ARTIFACTS,
+            agentPrompts: resolveAgentPrompts(p?.agentPrompts ?? null),
           }
         }
         return {
           ...currentState,
           projects: p?.projects ?? currentState.projects,
           artifacts: p?.artifacts ?? currentState.artifacts,
+          agentPrompts: resolveAgentPrompts(p?.agentPrompts ?? null),
         }
       },
-      storage: createJSONStorage(() =>
-        typeof window !== "undefined"
-          ? localStorage
-          : {
-              getItem: () => null,
-              setItem: () => {},
-              removeItem: () => {},
-            }
-      ),
+      storage: createJSONStorage(charterPersistStorage),
     }
   )
 )

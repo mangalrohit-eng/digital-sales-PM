@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand"
-import { APP_NAV_ITEMS } from "@/lib/nav-items"
+import { APP_NAV_ITEMS, isAppNavItemActive } from "@/lib/nav-items"
 import { Activity, AlertCircle } from "lucide-react"
 
 interface KeyStatus {
@@ -67,12 +67,9 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Primary">
         {APP_NAV_ITEMS.map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href)
+          const isActive = isAppNavItemActive(pathname, item.href)
           const Icon = item.icon
           return (
             <Link
@@ -133,9 +130,12 @@ export function Sidebar() {
           ) : (
             <>
               <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-400/90" />
-              <span className="min-w-0 flex-1 text-[11px] text-amber-200/80">
+              <Link
+                href="/settings"
+                className="min-w-0 flex-1 text-left text-[11px] text-amber-200/80 underline-offset-2 hover:underline"
+              >
                 Add OpenAI key in Settings
-              </span>
+              </Link>
             </>
           )}
         </div>

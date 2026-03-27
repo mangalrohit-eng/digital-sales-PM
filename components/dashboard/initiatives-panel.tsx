@@ -185,8 +185,8 @@ export function InitiativesPanel({
                 No initiatives yet
               </h3>
               <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-6 leading-relaxed">
-                Create your first initiative to run Sage, the generate pipeline
-                agents, and Quill—powered by GPT-4o.
+                Create an initiative to add context, generate BRDs through
+                layouts, refine in Artifacts, and export to your tools.
               </p>
               <Button
                 type="button"

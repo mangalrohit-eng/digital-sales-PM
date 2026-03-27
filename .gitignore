@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# local UX audit outputs (node scripts/ux-audit-screenshots.mjs)
+/audit-screenshots
+
 # next.js
 /.next/
 /out/

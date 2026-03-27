@@ -1,9 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Project, Artifact } from "@/lib/types"
-import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,7 +51,6 @@ const STATUS_CONFIG = {
 }
 
 export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) {
-  const router = useRouter()
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const brdCount = artifacts.filter((a) => a.type === "brd").length
   const epicCount = artifacts.filter((a) => a.type === "epic").length
@@ -65,34 +63,28 @@ export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) 
     totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0
   const status = STATUS_CONFIG[project.status]
 
-  const openWorkspace = () => {
-    router.push(`/projects/${project.id}`)
-  }
+  const workspaceHref = `/projects/${project.id}`
 
   return (
     <>
-      <div
-        role="link"
-        tabIndex={0}
-        onClick={openWorkspace}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault()
-            openWorkspace()
-          }
-        }}
-        className="group relative bg-card rounded-2xl border border-border/70 overflow-hidden card-elevated cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-      >
+      <div className="group relative bg-card rounded-2xl border border-border/70 overflow-hidden card-elevated outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
         {/* Top accent stripe */}
         <div
-          className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${status.stripe} opacity-80`}
+          className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${status.stripe} opacity-80 z-[1] pointer-events-none`}
+        />
+
+        {/* Full-card hit target (menu uses z-20 + pointer-events-auto) */}
+        <Link
+          href={workspaceHref}
+          className="absolute inset-0 z-0 rounded-2xl"
+          aria-label={`Open workspace: ${project.name}`}
         />
 
         {/* Card content */}
-        <div className="p-5 pt-6">
+        <div className="relative z-10 p-5 pt-6 pointer-events-none">
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-3">
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 pr-2">
               <div className="flex items-center gap-1.5 mb-2">
                 <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
                 <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
@@ -104,33 +96,26 @@ export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) 
               </h3>
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button
-                    type="button"
-                    className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-muted shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all text-muted-foreground hover:text-foreground z-10"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    aria-label="Initiative actions"
-                  />
-                }
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem
-                  className="text-destructive cursor-pointer text-[13px] gap-2"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setConfirmDeleteOpen(true)
-                  }}
+            <div className="pointer-events-auto shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  nativeButton
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-transparent bg-background/80 hover:bg-muted opacity-0 shadow-sm transition-all group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-foreground"
+                  aria-label="Initiative actions"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete initiative
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <MoreHorizontal className="w-4 h-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem
+                    className="text-destructive cursor-pointer text-[13px] gap-2"
+                    onClick={() => setConfirmDeleteOpen(true)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete initiative
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           {/* Description */}
@@ -207,10 +192,7 @@ export function ProjectCard({ project, artifacts, onDelete }: ProjectCardProps) 
           )}
 
           {/* Footer */}
-          <div
-            className="flex items-center justify-between pt-1 pointer-events-none"
-            aria-hidden
-          >
+          <div className="flex items-center justify-between pt-1" aria-hidden>
             <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
               <Clock className="w-3 h-3" />
               <span>{formatDistanceToNow(project.createdAt)}</span>

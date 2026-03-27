@@ -3,6 +3,11 @@ import OpenAI from "openai"
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import type { ArtifactType } from "@/lib/types"
+import type { AgentPromptsState } from "@/lib/agent-prompt-defaults"
+import {
+  buildQuillUserMessage,
+  resolveAgentPrompts,
+} from "@/lib/agent-prompt-build"
 
 export const maxDuration = 60
 
@@ -17,9 +22,10 @@ export async function POST(req: NextRequest) {
     type: ArtifactType
     content: string
     feedback: string
+    agentPrompts?: Partial<AgentPromptsState> | null
   } = await req.json()
 
-  const { title, type, content, feedback } = body
+  const { title, type, content, feedback, agentPrompts: promptsPartial } = body
   if (!content?.trim() || !feedback?.trim()) {
     return NextResponse.json(
       { error: "Content and feedback are required." },
@@ -38,36 +44,19 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const typeLabel: Record<ArtifactType, string> = {
-    brd: "Business Requirements Document",
-    epic: "Epic",
-    story: "User Story",
-    test_case: "Test Case",
-    screen_layout: "Screen layout (Figma-oriented specification)",
-  }
-
-  const prompt = `You are Quill, an editorial agent in RelayBench. Operate as a senior product and engineering writer for Spectrum.com digital sales.
-
-The user has an existing ${typeLabel[type]} titled: "${title}"
-
-CURRENT ARTIFACT (markdown):
----
-${content}
----
-
-USER FEEDBACK TO INCORPORATE:
-${feedback}
-
-${
-    type === "screen_layout"
-      ? `Revise the screen layout spec: keep the markdown sections, then end with a single valid \`\`\`json ... \`\`\` block (figmaHandoffVersion + document.frames) as in the original. Apply the feedback throughout. No preamble—output only the full revised artifact.`
-      : `Rewrite the full artifact in clean markdown. Apply the feedback thoroughly while keeping the same general document structure and headings where sensible. Do not add a preamble—output only the revised markdown body.`
-  }`
+  const prompts = resolveAgentPrompts(promptsPartial ?? null)
+  const userMessage = buildQuillUserMessage(
+    type,
+    title,
+    content,
+    feedback,
+    prompts
+  )
 
   const openai = new OpenAI({ apiKey })
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
-    messages: [{ role: "user", content: prompt }],
+    messages: [{ role: "user", content: userMessage }],
     temperature: 0.5,
     max_tokens: 4000,
   })

@@ -64,9 +64,10 @@ export function NewProjectDialog({
               New Digital Sales initiative
             </DialogTitle>
             <DialogDescription className="text-[13px] leading-relaxed text-muted-foreground">
-              Create a workspace where Sage brainstorms, specialist agents build
-              BRD through layouts, Quill refines, and Courier exports to Jira,
-              Figma, or Confluence. You can edit everything later from the overview.
+              Each initiative gets its own workspace: discovery chat, staged
+              generation for BRD through layouts, review and edits in Artifacts,
+              then push backlog items to Jira and layouts to Figma (BRD → Confluence is
+              optional). You can change details anytime from Overview.
             </DialogDescription>
           </DialogHeader>
         </div>

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useAppStore } from "@/lib/store"
 import { Artifact, ArtifactType, ArtifactStatus, STATUS_COLORS, STATUS_LABELS, ARTIFACT_TYPE_LABELS } from "@/lib/types"
-import { AGENT_QUILL, getAgentForArtifactType } from "@/lib/agents"
+import { getAgentForArtifactType } from "@/lib/agents"
 import {
   FigmaHandoffPreview,
   screenLayoutMarkdownForPreview,
@@ -20,6 +20,8 @@ import {
   BookOpen,
   TestTube2,
   LayoutTemplate,
+  Sparkles,
+  Target,
   Edit3,
   Save,
   X,
@@ -30,14 +32,16 @@ import {
   Clock,
   Circle,
   AlertTriangle,
-  Sparkles,
   Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "@/lib/date-utils"
 import { ConfirmDialog } from "@/components/confirm-dialog"
+import { isPublishedToLibrary } from "@/lib/artifact-published"
+import { renderMarkdown } from "@/lib/markdown-html"
 
 const TYPE_ICONS: Record<ArtifactType, React.ElementType> = {
+  initiative_brief: Target,
   brd: FileText,
   epic: Layers,
   story: BookOpen,
@@ -221,6 +225,7 @@ function ArtifactDetail({
           type: artifact.type,
           content: artifact.content,
           feedback: refineFeedback.trim(),
+          agentPrompts: useAppStore.getState().agentPrompts,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -233,10 +238,10 @@ function ArtifactDetail({
       addComment(artifact.id, {
         author: userName,
         authorRole: userRole,
-        text: `[${AGENT_QUILL.name}] ${refineFeedback.trim()}`,
+        text: `[Refinement] ${refineFeedback.trim()}`,
       })
       setRefineFeedback("")
-      toast.success(`${AGENT_QUILL.name} updated the artifact from your feedback`)
+      toast.success("Artifact updated from your feedback")
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Refinement failed")
     } finally {
@@ -361,11 +366,11 @@ function ArtifactDetail({
               <div className="mt-8 pt-6 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  {AGENT_QUILL.name} · Editorial agent
+                  Refine with AI
                 </p>
                 <p className="text-xs text-muted-foreground mb-3">
-                  {AGENT_QUILL.name} rewrites the full artifact from your instructions (tone,
-                  missing sections, stakeholder asks). A trace is added to comments.
+                  Rewrites the full artifact from your instructions (tone, missing
+                  sections, stakeholder asks). A trace is added to comments.
                 </p>
                 <Textarea
                   value={refineFeedback}
@@ -384,12 +389,12 @@ function ArtifactDetail({
                   {refining ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      {AGENT_QUILL.name}…
+                      Refining…
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5" />
-                      Run {AGENT_QUILL.name}
+                      Apply refinement
                     </>
                   )}
                 </Button>
@@ -475,7 +480,7 @@ function ArtifactDetail({
         </button>
 
         {showComments && (
-          <div className="px-5 pb-4 space-y-3">
+          <div className="space-y-3 px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {artifact.comments.length === 0 ? (
               <p className="text-xs text-muted-foreground">No comments yet.</p>
             ) : (
@@ -529,35 +534,6 @@ function ArtifactDetail({
   )
 }
 
-// Simple markdown → HTML renderer (no external deps)
-function renderMarkdown(md: string): string {
-  return md
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/^#{1}\s+(.+)$/gm, "<h1>$1</h1>")
-    .replace(/^#{2}\s+(.+)$/gm, "<h2>$1</h2>")
-    .replace(/^#{3}\s+(.+)$/gm, "<h3>$1</h3>")
-    .replace(/^#{4}\s+(.+)$/gm, "<h4>$1</h4>")
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/`(.+?)`/g, "<code>$1</code>")
-    .replace(/^---$/gm, "<hr>")
-    .replace(/^- (.+)$/gm, "<li>$1</li>")
-    .replace(/^(\d+)\. (.+)$/gm, "<li>$2</li>")
-    .replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`)
-    .replace(/\n\n/g, "</p><p>")
-    .replace(/^(?!<[h|u|l|h|o|p|b|e|c])/gm, "")
-    .replace(/(.+)(?<!>)\n/g, "$1<br>")
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      if (line.startsWith("<")) return line
-      return `<p>${line}</p>`
-    })
-    .join("\n")
-}
-
 export function ArtifactsTab({
   projectId,
   userRole,
@@ -565,19 +541,25 @@ export function ArtifactsTab({
 }: ArtifactsTabProps) {
   const { getArtifactsByProject } = useAppStore()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const artifacts = getArtifactsByProject(projectId)
-
-  const rootArtifacts = artifacts.filter((a) => a.parentId === null)
+  const raw = getArtifactsByProject(projectId)
+  const artifacts = raw.filter(isPublishedToLibrary)
+  const publishedIds = new Set(artifacts.map((a) => a.id))
+  const rootArtifacts = artifacts.filter(
+    (a) => !a.parentId || !publishedIds.has(a.parentId)
+  )
   const selectedArtifact = artifacts.find((a) => a.id === selectedId) ?? null
 
   if (artifacts.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-center">
-        <div>
+      <div className="workbench-pane-scroll flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10 text-center">
+        <div className="max-w-sm">
           <FileText className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-          <h3 className="font-semibold mb-1">No artifacts yet</h3>
-          <p className="text-sm text-muted-foreground">
-            Go to the Generate tab to create your artifact hierarchy.
+          <h3 className="font-semibold mb-1">No finalized artifacts yet</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+            Generate drafts in the BRD, Epics, Stories, Tests, or Layouts
+            workspace tabs, refine them in chat, then use{" "}
+            <strong className="font-medium text-foreground">Finalize to library</strong>{" "}
+            to add them here.
           </p>
         </div>
       </div>
@@ -585,9 +567,9 @@ export function ArtifactsTab({
   }
 
   return (
-    <div className="flex h-[calc(100vh-11rem)] rounded-xl border border-border overflow-hidden bg-background">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background md:flex-row">
       {/* Tree sidebar */}
-      <div className="w-72 border-r border-border flex flex-col shrink-0 min-h-0">
+      <div className="flex max-h-[min(40vh,280px)] min-h-0 w-full shrink-0 flex-col border-b border-border md:max-h-none md:h-full md:w-72 md:shrink-0 md:border-b-0 md:border-r">
         <div className="px-4 py-3 border-b border-border bg-muted/30">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Artifact tree
@@ -602,7 +584,9 @@ export function ArtifactsTab({
               <ArtifactNode
                 key={artifact.id}
                 artifact={artifact}
-                children={artifacts.filter((a) => a.parentId === artifact.id)}
+                children={artifacts.filter(
+                  (a) => a.parentId === artifact.id
+                )}
                 allArtifacts={artifacts}
                 depth={0}
                 userRole={userRole}
@@ -630,7 +614,7 @@ export function ArtifactsTab({
       </div>
 
       {/* Detail panel */}
-      <div className="flex flex-1 min-w-0 min-h-0 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {selectedArtifact ? (
           <ArtifactDetail
             key={selectedArtifact.id}

@@ -23,15 +23,20 @@ import {
   Copy,
   Download,
   FileCode,
+  Sparkles,
 } from "lucide-react"
 import { toast } from "sonner"
 import { ARTIFACT_TYPE_LABELS } from "@/lib/types"
-import { AGENT_COURIER } from "@/lib/agents"
 import { extractFigmaHandoffObject } from "@/lib/figma-handoff"
+import { isPublishedToLibrary } from "@/lib/artifact-published"
 
 const JIRA_TYPES: ArtifactType[] = ["brd", "epic", "story", "test_case"]
 
+/** Confluence: initiative brief + BRD as wiki/Markdown paste (backlog items use Jira). */
+const CONFLUENCE_PASTE_TYPES: ArtifactType[] = ["initiative_brief", "brd"]
+
 const TYPE_ICONS: Record<ArtifactType, React.ElementType> = {
+  initiative_brief: Sparkles,
   brd: FileText,
   epic: Layers,
   story: BookOpen,
@@ -81,7 +86,7 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
   const [currentItem, setCurrentItem] = useState("")
   const [results, setResults] = useState<TicketResult[]>([])
 
-  const artifacts = getArtifactsByProject(projectId)
+  const artifacts = getArtifactsByProject(projectId).filter(isPublishedToLibrary)
   const approvedArtifacts = artifacts.filter((a) => a.status === "approved")
   const jiraEligible = approvedArtifacts.filter((a) =>
     JIRA_TYPES.includes(a.type)
@@ -90,7 +95,7 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
   const readyToPush = jiraEligible.filter((a) => !a.jiraTicketId)
   const layoutArtifacts = artifacts.filter((a) => a.type === "screen_layout")
   const confluenceArtifacts = artifacts.filter((a) =>
-    JIRA_TYPES.includes(a.type)
+    CONFLUENCE_PASTE_TYPES.includes(a.type)
   )
 
   const pushToJira = async () => {
@@ -121,7 +126,7 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
       }
 
       toast.success(
-        `${AGENT_COURIER.name} filed ${readyToPush.length} ticket${readyToPush.length !== 1 ? "s" : ""} in Jira`
+        `Filed ${readyToPush.length} ticket${readyToPush.length !== 1 ? "s" : ""} in Jira`
       )
     } catch {
       toast.error("Jira push failed. Please try again.")
@@ -144,12 +149,13 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
 
   if (artifacts.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-center">
-        <div>
+      <div className="workbench-pane-scroll flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10 text-center">
+        <div className="max-w-sm">
           <Send className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
           <h3 className="font-semibold mb-1">No artifacts yet</h3>
           <p className="text-sm text-muted-foreground">
-            Run the generate agents first, then export to Jira, Figma, or Confluence.
+            Generate requirements first, then push approved work to Jira or download
+            Figma handoff JSON.
           </p>
         </div>
       </div>
@@ -157,14 +163,15 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
   }
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="mx-auto flex min-h-0 w-full max-w-3xl min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="workbench-pane-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="space-y-8 pr-1">
       <div>
         <h2 className="text-lg font-semibold mb-1">Export</h2>
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground/80">{AGENT_COURIER.name}</span>{" "}
-          ({AGENT_COURIER.role.toLowerCase()}) files approved BRDs, epics, stories, and
-          tests to Jira. Screen layouts include JSON for Figma; Confluence accepts wiki
-          or Markdown paste.
+          Approved <strong className="font-medium text-foreground/90">epics, stories, tests, and BRDs</strong> are{" "}
+          <strong className="font-medium text-foreground/90">filed in Jira</strong>. Screen layouts export as JSON for
+          Figma. If you document BRDs in Confluence, use the section below to copy wiki or Markdown—backlog items belong in Jira, not Confluence.
         </p>
       </div>
 
@@ -176,7 +183,7 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
             Jira
           </CardTitle>
           <p className="text-xs text-muted-foreground font-normal">
-            Approved requirements artifacts only (not screen layout specs).
+            Epics, stories, tests, and BRDs become Jira issues. Screen layouts use the Figma card below.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -216,12 +223,12 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
                     {pushing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        {AGENT_COURIER.name}…
+                        Pushing…
                       </>
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        Run {AGENT_COURIER.name} → Jira
+                        Push to Jira
                       </>
                     )}
                   </Button>
@@ -232,7 +239,7 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
                 <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-primary font-medium">
-                      {AGENT_COURIER.name} is filing tickets…
+                      Creating Jira tickets…
                     </span>
                     <span className="text-xs text-muted-foreground">{progress}%</span>
                   </div>
@@ -429,22 +436,23 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
 
       <Separator />
 
-      {/* Confluence */}
+      {/* Confluence — BRD documentation only; epics/stories export via Jira */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="w-4 h-4 text-blue-600" />
-            Confluence
+            Confluence (BRD only)
           </CardTitle>
           <p className="text-xs text-muted-foreground font-normal">
-            Copy wiki markup or Markdown into a Confluence page (paste, or /markdown
-            in the editor where supported).
+            Optional: paste an approved BRD into a Confluence page as wiki markup or
+            Markdown. Do not use this for epics or stories—those go to Jira.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
           {confluenceArtifacts.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No BRD, epic, story, or test artifacts to export.
+              No BRD in the library yet. Finalize a BRD in the workspace, then copy
+              it here if your team keeps requirements in Confluence.
             </p>
           ) : (
             confluenceArtifacts.map((artifact) => {
@@ -490,6 +498,8 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
           )}
         </CardContent>
       </Card>
+        </div>
+      </div>
     </div>
   )
 }

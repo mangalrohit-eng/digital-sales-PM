@@ -1,4 +1,5 @@
 export type ArtifactType =
+  | "initiative_brief"
   | "brd"
   | "epic"
   | "story"
@@ -22,6 +23,11 @@ export interface Comment {
   createdAt: string
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant"
+  content: string
+}
+
 export interface Artifact {
   id: string
   projectId: string
@@ -34,11 +40,12 @@ export interface Artifact {
   jiraTicketId?: string
   createdAt: string
   updatedAt: string
-}
-
-export interface ChatMessage {
-  role: "user" | "assistant"
-  content: string
+  /** `false` = draft in agent workspace only until finalized; omit or `true` = visible in Artifacts library */
+  published?: boolean
+  /** Chat history while editing in an agent workspace tab */
+  workspaceChat?: ChatMessage[]
+  /** Set when content was last revised from the workspace chat (refine flow). */
+  workspaceChatRefinedAt?: string
 }
 
 export interface Project {
@@ -46,6 +53,8 @@ export interface Project {
   name: string
   description: string
   cro_context: string
+  /** Living summary from Discovery chat; fed into BRD generation. */
+  initiativeBrief?: string
   owner: string
   ownerRole: string
   createdAt: string
@@ -54,6 +63,7 @@ export interface Project {
 }
 
 export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
+  initiative_brief: "Initiative brief",
   brd: "Business Requirements",
   epic: "Epic",
   story: "User Story",

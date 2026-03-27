@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Open_Sans, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
@@ -25,6 +25,16 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
 }
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,11 +45,11 @@ export default function RootLayout({
       lang="en"
       className={`${openSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full min-w-0 flex-col pb-[env(safe-area-inset-bottom)]">
         <Providers>
           <TooltipProvider>
             {children}
-            <Toaster richColors position="top-right" />
+            <Toaster richColors position="top-center" />
           </TooltipProvider>
         </Providers>
       </body>

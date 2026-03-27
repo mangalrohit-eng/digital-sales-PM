@@ -1,3 +1,22 @@
+/** For live labels: "12s ago", "3m ago", "2h ago", then short dates. */
+export function formatShortRelativePast(dateString: string): string {
+  const t = new Date(dateString).getTime()
+  if (Number.isNaN(t)) return ""
+  const sec = Math.max(0, Math.floor((Date.now() - t) / 1000))
+  if (sec < 8) return "just now"
+  if (sec < 60) return `${sec}s ago`
+  const mins = Math.floor(sec / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  })
+}
+
 export function formatDistanceToNow(dateString: string): string {
   const date = new Date(dateString)
   const now = new Date()

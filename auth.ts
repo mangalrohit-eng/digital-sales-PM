@@ -1,10 +1,10 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 
-const DEMO_USERS = [
+const BUILTIN_USERS = [
   {
     id: "1",
-    email: "admin@demo.app",
+    username: "admin",
     password: "ACN2026",
     name: "Josh D",
     role: "admin",
@@ -12,7 +12,7 @@ const DEMO_USERS = [
   },
   {
     id: "2",
-    email: "analyst@demo.app",
+    username: "analyst",
     password: "ACN2026",
     name: "Alex M",
     role: "analyst",
@@ -24,19 +24,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const user = DEMO_USERS.find(
+        const login = String(credentials?.email ?? "")
+          .trim()
+          .toLowerCase()
+        const user = BUILTIN_USERS.find(
           (u) =>
-            u.email === credentials?.email &&
-            u.password === credentials?.password
+            u.username === login && u.password === credentials?.password
         )
         if (!user) return null
         return {
           id: user.id,
-          email: user.email,
+          email: `${user.username}@relaybench.internal`,
           name: user.name,
           role: user.role,
           title: user.title,

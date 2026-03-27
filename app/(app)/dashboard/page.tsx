@@ -102,8 +102,8 @@ export default function DashboardPage() {
               </h1>
               <p className="text-white/45 text-sm max-w-md">
                 {activeProjects === 0
-                  ? `Start your first initiative in ${APP_NAME} — Sage, specialist agents, Quill, and Courier cover the full PM loop.`
-                  : `You have ${activeProjects} active initiative${activeProjects !== 1 ? "s" : ""} — ${totalArtifacts} artifact${totalArtifacts !== 1 ? "s" : ""} generated.`}
+                  ? `Create an initiative to capture context, generate requirements and backlog items, and export when ready.`
+                  : `You have ${activeProjects} active initiative${activeProjects !== 1 ? "s" : ""} — ${totalArtifacts} artifact${totalArtifacts !== 1 ? "s" : ""} in the workspace.`}
               </p>
             </div>
             <Button

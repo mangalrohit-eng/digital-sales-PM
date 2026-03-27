@@ -1,6 +1,6 @@
 import type { ArtifactType } from "./types"
 
-/** Named AI agents in RelayBench — each owns a class of automated work. */
+/** Specialist models used for generation and refinement steps. */
 export interface WorkbenchAgent {
   id: string
   name: string
@@ -57,7 +57,7 @@ export const AGENT_QUILL: WorkbenchAgent = {
   tagline: "Rewrites artifacts from your feedback while preserving intent.",
 }
 
-/** Simulated delivery for export flows (e.g. Jira). */
+/** Delivery / export integrations (e.g. Jira). */
 export const AGENT_COURIER: WorkbenchAgent = {
   id: "courier",
   name: "Courier",
@@ -66,6 +66,7 @@ export const AGENT_COURIER: WorkbenchAgent = {
 }
 
 export const ARTIFACT_AGENTS: Record<ArtifactType, WorkbenchAgent> = {
+  initiative_brief: AGENT_SAGE,
   brd: AGENT_MORGAN,
   epic: AGENT_ATLAS,
   story: AGENT_SCRIBE,

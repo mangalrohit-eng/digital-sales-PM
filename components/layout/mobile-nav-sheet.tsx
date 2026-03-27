@@ -2,10 +2,11 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { cn } from "@/lib/utils"
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand"
-import { APP_NAV_ITEMS } from "@/lib/nav-items"
+import { APP_NAV_ITEMS, isAppNavItemActive } from "@/lib/nav-items"
+import { LogOut, Settings } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -45,12 +46,12 @@ export function MobileNavSheet({ open, onOpenChange }: MobileNavSheetProps) {
             {APP_TAGLINE}
           </p>
         </SheetHeader>
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
+        <nav
+          className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3"
+          aria-label="Primary"
+        >
           {APP_NAV_ITEMS.map((item) => {
-            const isActive =
-              item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(item.href)
+            const isActive = isAppNavItemActive(pathname, item.href)
             const Icon = item.icon
             return (
               <Link
@@ -71,9 +72,9 @@ export function MobileNavSheet({ open, onOpenChange }: MobileNavSheetProps) {
           })}
         </nav>
         {user && (
-          <div className="mt-auto border-t border-border p-4">
+          <div className="mt-auto space-y-2 border-t border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
                 {initials}
               </div>
               <div className="min-w-0">
@@ -83,6 +84,25 @@ export function MobileNavSheet({ open, onOpenChange }: MobileNavSheetProps) {
                 </p>
               </div>
             </div>
+            <Link
+              href="/settings"
+              onClick={() => onOpenChange(false)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Settings className="h-[17px] w-[17px] shrink-0" strokeWidth={1.8} />
+              Settings
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                onOpenChange(false)
+                signOut({ callbackUrl: "/login" })
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-[13px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <LogOut className="h-[17px] w-[17px] shrink-0" strokeWidth={1.8} />
+              Log out
+            </button>
           </div>
         )}
       </SheetContent>

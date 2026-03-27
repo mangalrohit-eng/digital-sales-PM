@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,6 +18,8 @@ import {
   Save,
   Trash2,
   ExternalLink,
+  Sparkles,
+  ChevronRight,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -84,6 +87,25 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      <Link href="/settings/agents" className="block group">
+        <Card className="transition-colors hover:border-primary/40 hover:bg-primary/[0.02]">
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                Agent prompts
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                System and task templates for Sage, generation agents, and Quill
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+          </CardContent>
+        </Card>
+      </Link>
+
       {/* OpenAI Key */}
       <Card>
         <CardHeader className="pb-4">
@@ -94,7 +116,7 @@ export default function SettingsPage() {
             <div>
               <CardTitle className="text-base">OpenAI API Key</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Required for all workbench agents (Sage, Morgan, Atlas, …)
+                Required for AI-assisted discovery, generation, and editing
               </CardDescription>
             </div>
           </div>
@@ -218,43 +240,42 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Data does not sync across devices or users. For demos and personal
-            drafts this keeps setup simple; a shared team deployment would use a
-            backend database instead.
+            Data stays in this browser and does not sync across devices or
+            accounts. A production deployment would persist initiatives and
+            artifacts in a shared backend.
           </p>
         </CardContent>
       </Card>
 
-      {/* Demo accounts */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-base">Demo Accounts</CardTitle>
+          <CardTitle className="text-base">Organization profiles</CardTitle>
           <CardDescription className="text-xs">
-            Pre-configured accounts for this demo
+            Example roles supported in this build (credentials from your admin)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {[
               {
-                email: "admin@demo.app",
+                login: "admin",
                 role: "Admin",
                 title: "Director, Digital Sales",
                 capabilities: [
                   "Approve artifacts",
-                  "Run Courier → Jira",
+                  "Export to Jira",
                   "Full access",
                 ],
               },
               {
-                email: "analyst@demo.app",
+                login: "analyst",
                 role: "Analyst",
                 title: "Digital Sales Analyst",
-                capabilities: ["Sage", "Agent pipeline", "Submit for review"],
+                capabilities: ["Discovery", "Generation", "Submit for review"],
               },
             ].map((account) => (
               <div
-                key={account.email}
+                key={account.login}
                 className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
               >
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -264,7 +285,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-sm font-medium">{account.email}</p>
+                    <p className="text-sm font-medium font-mono">{account.login}</p>
                     <Badge
                       variant="outline"
                       className={`text-[10px] px-1.5 py-0 h-auto ${

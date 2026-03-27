@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import {
   Send,
   Loader2,
@@ -14,11 +13,13 @@ import {
   User,
   Copy,
   Check,
+  FileText,
 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { ChatMessage } from "@/lib/types"
 import { AGENT_SAGE, agentInitials } from "@/lib/agents"
 import { toast } from "sonner"
+import { renderMarkdown } from "@/lib/markdown-html"
 
 interface BrainstormTabProps {
   projectId: string
@@ -27,13 +28,61 @@ interface BrainstormTabProps {
   userName: string
 }
 
-const QUICK_PROMPTS = [
-  "What are the top Digital Sales opportunities for the checkout flow?",
-  "Brainstorm ideas to reduce cart abandonment",
-  "Suggest A/B tests for the address verification step",
-  "How can we improve mobile conversion rates?",
-  "What personalization strategies could boost conversions?",
-]
+/** Short chip label + full message (initiative-specific). */
+function initiativeQuickActions(p: {
+  projectName: string
+  description: string
+  croContext: string
+}): { label: string; prompt: string }[] {
+  const name = p.projectName.trim() || "this initiative"
+  const desc = p.description.trim()
+  const ctx = p.croContext.trim()
+  const descQuoted = desc.length > 280 ? `${desc.slice(0, 277)}…` : desc
+  const ctxQuoted = ctx.length > 280 ? `${ctx.slice(0, 277)}…` : ctx
+
+  const actions: { label: string; prompt: string }[] = []
+
+  actions.push({
+    label: "Top opportunities",
+    prompt: `For the initiative "${name}": What are the top 3 opportunities we should prioritize first, what evidence supports each, and what should we explicitly deprioritize?`,
+  })
+
+  if (desc) {
+    actions.push({
+      label: "Stress-test description",
+      prompt: `Initiative: "${name}"\n\nCurrent description:\n${descQuoted}\n\nWhat is unclear, missing, or risky? What should we rewrite or validate before we commit design and engineering?`,
+    })
+  } else {
+    actions.push({
+      label: "Draft description",
+      prompt: `"${name}" does not have a written description yet. Draft a tight one-paragraph initiative description (problem, audience, outcome, and how we will measure success) that we can align the team on.`,
+    })
+  }
+
+  if (ctx) {
+    actions.push({
+      label: "Mine context",
+      prompt: `Initiative: "${name}"\n\nProduct / funnel / business context:\n${ctxQuoted}\n\nGiven this context, what friction points, constraints, or dependencies should we brainstorm—and what mitigations or experiments should we consider?`,
+    })
+  } else {
+    actions.push({
+      label: "Hidden assumptions",
+      prompt: `For "${name}", what implicit assumptions might we be making (users, channels, compliance, data, tech)? Which should we validate first and how?`,
+    })
+  }
+
+  actions.push({
+    label: "Phased roadmap",
+    prompt: `Propose a phased roadmap (discovery → design → build → launch → measure) specifically for "${name}", with PM-level milestones and decision checkpoints.`,
+  })
+
+  actions.push({
+    label: "Open questions",
+    prompt: `List the highest-signal open questions for "${name}", grouped for design, engineering, analytics, and legal/compliance. For each, suggest who should own it and what “resolved” looks like.`,
+  })
+
+  return actions
+}
 
 function MessageBubble({
   message,
@@ -108,22 +157,124 @@ export function BrainstormTab({
   croContext,
   userName,
 }: BrainstormTabProps) {
-  const { getProject, appendChatMessage, clearProjectChat } = useAppStore()
+  const { getProject, appendChatMessage, clearProjectChat, updateProject } =
+    useAppStore()
   const project = getProject(projectId)
   const messages = project?.chatHistory ?? []
+  const description = project?.description?.trim() ?? ""
+  const initiativeBrief = project?.initiativeBrief?.trim() ?? ""
+
+  const projectContextForApi = useMemo(() => {
+    const lines = [`Initiative: ${projectName.trim() || "(unnamed)"}`]
+    if (description) {
+      lines.push(`Description:\n${description}`)
+    } else {
+      lines.push("Description: (not provided yet—offer to help draft one if useful)")
+    }
+    if (croContext.trim()) {
+      lines.push(`Product / funnel context:\n${croContext.trim()}`)
+    }
+    return lines.join("\n\n")
+  }, [projectName, description, croContext])
+
+  const quickActions = useMemo(
+    () =>
+      initiativeQuickActions({
+        projectName,
+        description,
+        croContext,
+      }),
+    [projectName, description, croContext]
+  )
 
   const [input, setInput] = useState("")
   const [streaming, setStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState("")
+  const [briefRefreshing, setBriefRefreshing] = useState(false)
+  const [briefCopied, setBriefCopied] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  /** When false, user scrolled up — do not fight them during streaming / new tokens. */
+  const stickToBottomRef = useRef(true)
+  const messagesScrollRegionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    const wrap = messagesScrollRegionRef.current
+    if (!wrap) return
+    const viewport = wrap.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    ) as HTMLElement | null
+    if (!viewport) return
+
+    const onScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport
+      const fromBottom = scrollHeight - scrollTop - clientHeight
+      stickToBottomRef.current = fromBottom < 72
+    }
+
+    viewport.addEventListener("scroll", onScroll, { passive: true })
+    onScroll()
+    return () => viewport.removeEventListener("scroll", onScroll)
+  }, [])
+
+  useEffect(() => {
+    if (!stickToBottomRef.current) return
+    bottomRef.current?.scrollIntoView({
+      behavior: streamingText ? "auto" : "smooth",
+    })
   }, [messages, streamingText])
+
+  const refreshInitiativeBrief = useCallback(
+    async (chatMessages: ChatMessage[]) => {
+      if (chatMessages.length === 0) {
+        updateProject(projectId, { initiativeBrief: "" })
+        return
+      }
+
+      const prev =
+        useAppStore.getState().getProject(projectId)?.initiativeBrief ?? ""
+
+      setBriefRefreshing(true)
+      try {
+        const res = await fetch("/api/ai/initiative-brief", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: chatMessages,
+            projectContext: projectContextForApi,
+            previousBrief: prev,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          throw new Error(data.error ?? "Could not update initiative brief")
+        }
+        const brief = typeof data.brief === "string" ? data.brief.trim() : ""
+        if (brief) {
+          updateProject(projectId, { initiativeBrief: brief })
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Brief update failed"
+        toast.error(msg)
+      } finally {
+        setBriefRefreshing(false)
+      }
+    },
+    [projectId, projectContextForApi, updateProject]
+  )
+
+  useEffect(() => {
+    const p = useAppStore.getState().getProject(projectId)
+    const hist = p?.chatHistory ?? []
+    if (hist.length === 0) return
+    if (p?.initiativeBrief?.trim()) return
+    void refreshInitiativeBrief(hist)
+  }, [projectId, refreshInitiativeBrief])
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || streaming) return
+
+    stickToBottomRef.current = true
 
     const userMessage: ChatMessage = { role: "user", content: content.trim() }
     appendChatMessage(projectId, userMessage)
@@ -137,9 +288,8 @@ export function BrainstormTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...messages, userMessage],
-          projectContext: croContext
-            ? `Initiative: ${projectName}\n${croContext}`
-            : `Initiative: ${projectName}`,
+          projectContext: projectContextForApi,
+          agentPrompts: useAppStore.getState().agentPrompts,
         }),
       })
 
@@ -163,6 +313,12 @@ export function BrainstormTab({
       }
 
       appendChatMessage(projectId, { role: "assistant", content: fullText })
+      const nextHistory: ChatMessage[] = [
+        ...messages,
+        userMessage,
+        { role: "assistant", content: fullText },
+      ]
+      void refreshInitiativeBrief(nextHistory)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong"
       toast.error(msg)
@@ -179,61 +335,74 @@ export function BrainstormTab({
     }
   }
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-11rem)] bg-background rounded-xl border border-border overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted/30 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">
-              {AGENT_SAGE.name} · Discovery
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Agentic brainstorm for Spectrum.com digital sales
-            </p>
-          </div>
-        </div>
-        {messages.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-xs h-7"
-            onClick={() => {
-              clearProjectChat(projectId)
-              toast.success("Conversation cleared")
-            }}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Clear
-          </Button>
-        )}
-      </div>
+  const copyBrief = () => {
+    if (!initiativeBrief) return
+    navigator.clipboard.writeText(initiativeBrief)
+    setBriefCopied(true)
+    setTimeout(() => setBriefCopied(false), 2000)
+    toast.success("Initiative brief copied")
+  }
 
-      {/* Messages */}
-      <ScrollArea className="flex-1 px-5 py-4">
+  return (
+    <div className="mx-auto grid min-h-0 w-full max-w-6xl min-w-0 flex-1 grid-cols-1 gap-4 overflow-hidden [grid-template-rows:minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-12 lg:grid-rows-1 lg:gap-4">
+      {/* Left: chat — composer fixed at bottom of column; messages scroll */}
+      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background lg:col-span-4">
+        <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2 shrink-0">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Chat
+            </span>
+            <p className="text-[11px] text-muted-foreground truncate max-w-[min(100%,14rem)] sm:max-w-md">
+              {AGENT_SAGE.name} · {projectName}
+            </p>
+          </div>
+          {messages.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => {
+                clearProjectChat(projectId)
+                toast.success("Conversation cleared")
+              }}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Clear
+            </Button>
+          )}
+        </div>
+
+        <div
+          ref={messagesScrollRegionRef}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+      <ScrollArea className="min-h-0 min-w-0 flex-1 px-4 py-4">
         <div className="space-y-5">
           {messages.length === 0 && !streaming && (
             <div className="text-center py-12">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
                 <Sparkles className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="font-semibold mb-2">Start with Sage</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
-                {AGENT_SAGE.name} explores Digital Sales opportunities for Spectrum.com—ideas,
-                friction, and hypotheses—before you hand off to the generate
-                pipeline.
+              <h3 className="font-semibold mb-2">
+                Discovery ·{" "}
+                <span className="text-primary">{projectName}</span>
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6 leading-relaxed">
+                Quick prompts use this initiative&apos;s name
+                {description ? ", description" : ""}
+                {croContext.trim() ? ", and saved context" : ""}. Choose one or
+                write your own, then open BRD or the next workspace tab when you are ready.
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {QUICK_PROMPTS.map((prompt) => (
+              <div className="flex flex-wrap gap-2 justify-center max-w-full">
+                {quickActions.map(({ label, prompt }, idx) => (
                   <button
-                    key={prompt}
+                    key={`${label}-${idx}`}
+                    type="button"
+                    title={prompt}
                     onClick={() => sendMessage(prompt)}
-                    className="text-xs px-3 py-2 rounded-full border border-border bg-background hover:bg-accent hover:border-primary/30 transition-all text-muted-foreground hover:text-foreground"
+                    className="text-xs px-3 py-2 rounded-full border border-border bg-background hover:bg-accent hover:border-primary/30 transition-all text-muted-foreground hover:text-foreground max-w-[100%] text-left sm:text-center"
                   >
-                    {prompt}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -286,19 +455,22 @@ export function BrainstormTab({
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
+      </div>
 
       {/* Input */}
-      <div className="px-5 py-4 border-t border-border bg-background shrink-0">
+      <div className="shrink-0 border-t border-border bg-background px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {messages.length > 0 && (
           <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-thin">
-            {QUICK_PROMPTS.slice(0, 3).map((prompt) => (
+            {quickActions.slice(0, 3).map(({ label, prompt }, idx) => (
               <button
-                key={prompt}
+                key={`bar-${label}-${idx}`}
+                type="button"
+                title={prompt}
                 onClick={() => sendMessage(prompt)}
                 disabled={streaming}
                 className="shrink-0 text-xs px-2.5 py-1.5 rounded-full border border-border bg-background hover:bg-accent disabled:opacity-40 transition-all text-muted-foreground hover:text-foreground whitespace-nowrap"
               >
-                {prompt}
+                {label}
               </button>
             ))}
           </div>
@@ -309,7 +481,7 @@ export function BrainstormTab({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about Digital Sales opportunities… (Enter to send, Shift+Enter for new line)"
+            placeholder={`Ask about "${projectName}"… (Enter to send, Shift+Enter for new line)`}
             className="resize-none min-h-[44px] max-h-[120px] text-sm"
             rows={1}
             disabled={streaming}
@@ -328,8 +500,78 @@ export function BrainstormTab({
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
-          {AGENT_SAGE.name} uses your initiative context and Spectrum.com digital sales patterns.
+          Each message includes this initiative&apos;s name, description, and
+          saved context. The initiative brief on the right updates after each
+          Sage reply and is used when you generate a BRD.
         </p>
+      </div>
+      </div>
+
+      {/* Right: initiative brief (mirrors Stories “Preview” column) */}
+      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background lg:col-span-8">
+        <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2 shrink-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <FileText className="h-4 w-4 text-primary" strokeWidth={2} />
+            </div>
+            <div className="min-w-0">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Preview
+              </span>
+              <p className="truncate text-[11px] font-medium text-foreground/90">
+                Initiative brief
+              </p>
+              <p className="truncate text-[11px] text-muted-foreground">
+                Lives with discovery · BRD input
+              </p>
+            </div>
+          </div>
+          {briefRefreshing && (
+            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Updating
+            </span>
+          )}
+        </div>
+        <ScrollArea className="min-h-0 min-w-0 flex-1 px-4 py-3">
+          {!initiativeBrief && !briefRefreshing && messages.length === 0 ? (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Chat with {AGENT_SAGE.name} to build a concise brief. It refreshes
+              after each reply with structured problem, audience, success
+              signals, and open questions—ready for the BRD step.
+            </p>
+          ) : !initiativeBrief && briefRefreshing ? (
+            <p className="text-sm text-muted-foreground">Drafting brief…</p>
+          ) : initiativeBrief ? (
+            <div
+              className="artifact-content artifact-preview text-sm"
+              dangerouslySetInnerHTML={{
+                __html: renderMarkdown(initiativeBrief),
+              }}
+            />
+          ) : (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Your brief will appear here after you chat with {AGENT_SAGE.name}.
+            </p>
+          )}
+        </ScrollArea>
+        {initiativeBrief && !briefRefreshing && (
+          <div className="shrink-0 border-t border-border bg-muted/15 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 w-full gap-2 rounded-xl text-sm font-semibold shadow-sm"
+              onClick={copyBrief}
+            >
+              {briefCopied ? (
+                <Check className="h-5 w-5 shrink-0 text-emerald-600" strokeWidth={2} />
+              ) : (
+                <Copy className="h-5 w-5 shrink-0" strokeWidth={2} />
+              )}
+              {briefCopied ? "Copied to clipboard" : "Copy initiative brief"}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

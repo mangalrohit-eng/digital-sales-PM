@@ -160,3 +160,16 @@ button:not(:disabled):active {
 .artifact-content hr { margin: 1.25rem 0; border-color: oklch(0.88 0 0); }
 .artifact-content code { background: oklch(0.95 0 0); padding: 0.125rem 0.375rem; border-radius: 2px; font-size: 0.75rem; font-family: var(--font-mono); color: oklch(0.10 0 0); }
 .artifact-content blockquote { border-left: 3px solid oklch(0.50 0.295 308); padding-left: 1rem; margin: 0.75rem 0; font-style: italic; color: oklch(0.45 0 0); font-size: 0.8125rem; }
+
+/* Project workbench: keep scrollbars visible on pane ScrollAreas when overflow exists */
+.workbench-tabs [data-slot="scroll-area-scrollbar"] {
+  opacity: 1;
+}
+
+/* Native overflow panes — stable gutter, contained overscroll */
+.workbench-pane-scroll {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
