@@ -7,6 +7,7 @@ import {
   LayoutTemplate,
 } from "lucide-react"
 import type { Artifact, ArtifactType } from "./types"
+import { splitEpicBoldBlocks, sanitizeEpicTitle } from "./epic-markdown"
 import { useAppStore } from "./store"
 import { toast } from "sonner"
 
@@ -190,12 +191,13 @@ export async function runAgentGeneration(
       throw new Error(d.error ?? "Generation failed")
     }
     const data = await res.json()
-    const epicBlocks = data.content.split(/(?=\*\*Epic \d)/g).filter(Boolean)
+    const epicBlocks = splitEpicBoldBlocks(data.content)
     const count = Math.max(epicBlocks.length, 1)
-    if (epicBlocks.length > 1) {
+    if (epicBlocks.length > 0) {
       epicBlocks.forEach((block: string, i: number) => {
-        const titleMatch = block.match(/\*\*Epic \d+:\s*([^\*\n]+)\*\*/)
-        const title = titleMatch ? titleMatch[1].trim() : `Epic ${i + 1}`
+        const titleMatch = block.match(/^\*\*Epic \d+:\s*([^*]+)\*\*/)
+        const rawTitle = titleMatch ? titleMatch[1].trim() : ""
+        const title = sanitizeEpicTitle(rawTitle, i + 1)
         addArtifact({
           projectId,
           parentId: brd.id,

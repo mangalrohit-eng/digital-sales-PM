@@ -10,6 +10,12 @@ import {
 import { getAgentForArtifactType } from "@/lib/agents"
 import { renderMarkdown, stripOuterMarkdownFence } from "@/lib/markdown-html"
 import {
+  splitEpicBoldBlocks,
+  sanitizeEpicTitle,
+  stripMarkdownPreambleBeforeFirstEpic,
+  isPlausibleEpicSectionHeading,
+} from "@/lib/epic-markdown"
+import {
   FigmaHandoffPreview,
   screenLayoutMarkdownForPreview,
 } from "@/components/project/figma-handoff-preview"
@@ -89,43 +95,52 @@ function parseEpicSections(markdown: string): Array<{ title: string; body: strin
     .filter((section) => section.title.trim().length > 0)
 }
 
-/** Epics: prefer ## sections; else **Epic N:** blocks (single or many). */
+/** Epics: prefer **Epic N:** blocks when present; else ## sections (junk headings filtered). */
 function getEpicPreviewSections(
   markdown: string
 ): Array<{ title: string; body: string }> | null {
-  const n = stripOuterMarkdownFence(markdown.replace(/\r\n/g, "\n")).trim()
+  const n = stripMarkdownPreambleBeforeFirstEpic(
+    stripOuterMarkdownFence(markdown.replace(/\r\n/g, "\n")).trim()
+  )
   if (!n) return null
 
-  const byHeading = parseEpicSections(n)
-  if (byHeading.length > 1) return byHeading
-
-  const boldChunks = n
-    .split(/(?=\*\*Epic \d+)/g)
-    .map((c) => c.trim())
-    .filter(Boolean)
-  if (boldChunks.length > 1) {
-    return boldChunks.map((chunk, i) => {
+  const epicOnlyChunks = splitEpicBoldBlocks(n)
+  if (epicOnlyChunks.length > 0) {
+    return epicOnlyChunks.map((chunk, i) => {
       const line = chunk.split("\n")[0] ?? ""
       const m = line.match(/^\*\*Epic \d+:\s*([^*]+)\*\*/)
+      const rawTitle = m ? m[1].trim() : ""
       return {
-        title: m ? m[1].trim() : `Epic ${i + 1}`,
+        title: sanitizeEpicTitle(rawTitle, i + 1),
         body: m ? chunk.slice(chunk.indexOf("\n") + 1).trim() : chunk,
       }
     })
   }
-  if (boldChunks.length === 1 && /^\*\*Epic \d+:/.test(boldChunks[0])) {
-    const chunk = boldChunks[0]
-    const line = chunk.split("\n")[0] ?? ""
-    const m = line.match(/^\*\*Epic \d+:\s*([^*]+)\*\*/)
-    return [
-      {
-        title: m ? m[1].trim() : "Epic",
-        body: m ? chunk.slice(chunk.indexOf("\n") + 1).trim() : chunk,
-      },
-    ]
-  }
 
-  if (byHeading.length === 1) return byHeading
+  const byHeading = parseEpicSections(n)
+  const plausible = byHeading.filter((s) =>
+    isPlausibleEpicSectionHeading(s.title)
+  )
+  if (plausible.length > 1) {
+    return plausible.map((s, i) => ({
+      ...s,
+      title: sanitizeEpicTitle(s.title, i + 1),
+    }))
+  }
+  if (plausible.length === 1) {
+    const s = plausible[0]
+    return [{ ...s, title: sanitizeEpicTitle(s.title, 1) }]
+  }
+  if (byHeading.length > 1) {
+    return byHeading.map((s, i) => ({
+      ...s,
+      title: sanitizeEpicTitle(s.title, i + 1),
+    }))
+  }
+  if (byHeading.length === 1) {
+    const s = byHeading[0]
+    return [{ ...s, title: sanitizeEpicTitle(s.title, 1) }]
+  }
   return null
 }
 
@@ -239,8 +254,7 @@ function countEpicsInContent(markdown: string): number {
   const trimmed = markdown.replace(/\r\n/g, "\n").trim()
   if (!trimmed) return 0
 
-  const boldBlocks = trimmed.split(/(?=\*\*Epic \d)/g).filter((b) => b.trim().length > 0)
-  const fromBoldSplit = boldBlocks.length > 1 ? boldBlocks.length : 0
+  const fromBoldSplit = splitEpicBoldBlocks(trimmed).length
   const fromBoldMarkers = trimmed.match(/\*\*Epic \d+/g)?.length ?? 0
   const fromEpicHeadings = trimmed
     .split("\n")
@@ -676,7 +690,7 @@ export function AgentWorkspaceTab({
               <ScrollArea className="min-h-0 flex-1">
                 <div className="space-y-1 p-2">
                   {workspaceItems.length > 1 || sectionNavItems.length <= 1
-                    ? workspaceItems.map((a) => (
+                    ? workspaceItems.map((a, idx) => (
                         <button
                           key={a.id}
                           type="button"
@@ -688,7 +702,11 @@ export function AgentWorkspaceTab({
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <span className="line-clamp-2 font-medium">{a.title}</span>
+                            <span className="line-clamp-2 font-medium">
+                              {step.type === "epic"
+                                ? sanitizeEpicTitle(a.title, idx + 1)
+                                : a.title}
+                            </span>
                             <Badge
                               variant={a.published ? "secondary" : "outline"}
                               className={`shrink-0 text-[10px] ${
@@ -767,9 +785,21 @@ export function AgentWorkspaceTab({
                   {selected && (
                     <span
                       className="min-w-0 max-w-full truncate text-xs font-medium text-foreground/90 sm:max-w-[min(100%,18rem)] lg:max-w-[min(100%,28rem)]"
-                      title={selected.title}
+                      title={
+                        step.type === "epic"
+                          ? sanitizeEpicTitle(
+                              selected.title,
+                              workspaceItems.findIndex((x) => x.id === selected.id) + 1
+                            )
+                          : selected.title
+                      }
                     >
-                      {selected.title}
+                      {step.type === "epic"
+                        ? sanitizeEpicTitle(
+                            selected.title,
+                            workspaceItems.findIndex((x) => x.id === selected.id) + 1
+                          )
+                        : selected.title}
                     </span>
                   )}
                   {(step.type === "epic" && epicRollup) || selected?.workspaceChatRefinedAt ? (

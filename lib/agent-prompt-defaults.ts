@@ -76,6 +76,9 @@ Based on this Business Requirements Document, create 4-5 Epics that organize the
 
 {{CONTEXT}}
 
+Output only the epics in markdown—no preamble, introduction, or closing remarks. Your first line must begin with **Epic 1:**
+Never put conversational text (e.g. "Certainly", "Here are the organized Epics") in the **Epic [N]:** title slot—only a short thematic heading (about 12 words or fewer).
+
 For each Epic provide:
 **Epic [N]: [Title]**
 - **Description**: 2-3 sentence overview
