@@ -36,6 +36,26 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatShortRelativePast } from "@/lib/date-utils"
+import { useWorkbenchAgentBusy } from "@/components/project/workbench-agent-busy-context"
+import type { ArtifactType } from "@/lib/types"
+import type { WorkbenchAgentActivityKind } from "@/lib/workbench-agent-activity"
+import {
+  buildWorkspaceGenerationActivityDetail,
+  buildWorkspaceRefineDetail,
+} from "@/lib/workbench-agent-activity-builders"
+import { fetchRefineStream, settleBeforeArtifact } from "@/lib/ai-stream-client"
+
+function workspaceRefineKind(type: ArtifactType): WorkbenchAgentActivityKind {
+  const m: Record<ArtifactType, WorkbenchAgentActivityKind> = {
+    initiative_brief: "refine_initiative_brief",
+    brd: "refine_brd",
+    epic: "refine_epic",
+    story: "refine_story",
+    test_case: "refine_test_case",
+    screen_layout: "refine_screen_layout",
+  }
+  return m[type] ?? "generic"
+}
 
 interface AgentWorkspaceTabProps {
   projectId: string
@@ -271,6 +291,11 @@ export function AgentWorkspaceTab({
   userName,
   step,
 }: AgentWorkspaceTabProps) {
+  const {
+    begin: beginAgentBusy,
+    end: endAgentBusy,
+    patchActiveDetail,
+  } = useWorkbenchAgentBusy()
   /** Select stable `artifacts` array; filter in useMemo so the store snapshot is referentially stable. */
   const allArtifacts = useAppStore((s) => s.artifacts)
   const artifacts = useMemo(
@@ -337,6 +362,21 @@ export function AgentWorkspaceTab({
   const runGenerate = async () => {
     setGenerating(true)
     setGenProgress(0)
+    const legacyBriefChars =
+      useAppStore
+        .getState()
+        .getProject(projectId)
+        ?.initiativeBrief?.trim().length ?? 0
+    beginAgentBusy(
+      buildWorkspaceGenerationActivityDetail(step, {
+        projectId,
+        projectName,
+        croContext,
+        artifacts,
+        parentArtifacts,
+        legacyInitiativeBriefChars: legacyBriefChars,
+      })
+    )
     try {
       await runAgentGeneration(step, {
         projectId,
@@ -345,10 +385,12 @@ export function AgentWorkspaceTab({
         artifacts,
         addArtifact,
         onProgress: setGenProgress,
+        onPlanning: (text) => patchActiveDetail({ planning: text }),
       })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Generation failed")
     } finally {
+      endAgentBusy()
       setGenerating(false)
       setTimeout(() => setGenProgress(0), 800)
     }
@@ -362,22 +404,32 @@ export function AgentWorkspaceTab({
     const feedback = buildRefineFeedback(text, prior)
 
     setRefining(true)
+    beginAgentBusy(
+      buildWorkspaceRefineDetail(workspaceRefineKind(selected.type), {
+        title: selected.title,
+        artifactTypeLabel: selected.type,
+        draftChars: selected.content?.trim().length ?? 0,
+        instruction: text,
+        workspaceChatTurns: prior.length,
+      })
+    )
     try {
-      const res = await fetch("/api/ai/refine", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await fetchRefineStream(
+        {
           title: selected.title,
           type: selected.type,
           content: selected.content,
           feedback,
           agentPrompts: useAppStore.getState().agentPrompts,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? "Update failed")
-      const next = data.content as string
+        },
+        (preview) => {
+          const t = preview.trim()
+          if (t) patchActiveDetail({ planning: t })
+        }
+      )
+      const next = data.content
       if (!next?.trim()) throw new Error("Empty response")
+      await settleBeforeArtifact()
 
       const userMsg: ChatMessage = { role: "user", content: text }
       const asstMsg: ChatMessage = {
@@ -393,6 +445,7 @@ export function AgentWorkspaceTab({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed")
     } finally {
+      endAgentBusy()
       setRefining(false)
     }
   }

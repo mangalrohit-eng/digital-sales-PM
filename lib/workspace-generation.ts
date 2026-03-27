@@ -10,6 +10,7 @@ import type { Artifact, ArtifactType } from "./types"
 import { splitEpicBoldBlocks, sanitizeEpicTitle } from "./epic-markdown"
 import { useAppStore } from "./store"
 import { toast } from "sonner"
+import { fetchGenerateStream, settleBeforeArtifact } from "./ai-stream-client"
 
 export interface WorkspaceAgentStep {
   tab: string
@@ -90,6 +91,14 @@ type AddArtifactFn = (data: {
   published: boolean
 }) => void
 
+function pushPlanningPreview(
+  text: string,
+  onPlanning?: (text: string) => void
+) {
+  const t = text.trim()
+  if (t && onPlanning) onPlanning(t)
+}
+
 export async function runAgentGeneration(
   step: WorkspaceAgentStep,
   ctx: {
@@ -99,10 +108,19 @@ export async function runAgentGeneration(
     artifacts: Artifact[]
     addArtifact: AddArtifactFn
     onProgress: (pct: number) => void
+    /** Called when the API returns a model planning block (footer panel). */
+    onPlanning?: (text: string) => void
   }
 ): Promise<void> {
-  const { projectId, projectName, croContext, artifacts, addArtifact, onProgress } =
-    ctx
+  const {
+    projectId,
+    projectName,
+    croContext,
+    artifacts,
+    addArtifact,
+    onProgress,
+    onPlanning,
+  } = ctx
   const parentArtifacts = step.dependsOn
     ? artifacts.filter((a) => a.type === step.dependsOn)
     : []
@@ -142,22 +160,17 @@ export async function runAgentGeneration(
       .filter(Boolean)
       .join("\n\n")
     onProgress(30)
-    const res = await fetch("/api/ai/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const data = await fetchGenerateStream(
+      {
         type: "brd",
         context,
         title: `BRD: ${projectName}`,
         agentPrompts,
-      }),
-    })
+      },
+      (preview) => pushPlanningPreview(preview, onPlanning)
+    )
     onProgress(80)
-    if (!res.ok) {
-      const d = await res.json()
-      throw new Error(d.error ?? "Generation failed")
-    }
-    const data = await res.json()
+    await settleBeforeArtifact()
     addArtifact({
       projectId,
       parentId: null,
@@ -175,22 +188,17 @@ export async function runAgentGeneration(
   if (step.type === "epic") {
     const brd = parentArtifacts[0]
     onProgress(20)
-    const res = await fetch("/api/ai/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const data = await fetchGenerateStream(
+      {
         type: "epic",
         context: brd.content,
         title: "Epics",
         agentPrompts,
-      }),
-    })
+      },
+      (preview) => pushPlanningPreview(preview, onPlanning)
+    )
     onProgress(80)
-    if (!res.ok) {
-      const d = await res.json()
-      throw new Error(d.error ?? "Generation failed")
-    }
-    const data = await res.json()
+    await settleBeforeArtifact()
     const epicBlocks = splitEpicBoldBlocks(data.content)
     const count = Math.max(epicBlocks.length, 1)
     if (epicBlocks.length > 0) {
@@ -231,21 +239,16 @@ export async function runAgentGeneration(
     for (let i = 0; i < parentArtifacts.length; i++) {
       const epic = parentArtifacts[i]
       onProgress(Math.round(10 + (i / parentArtifacts.length) * 80))
-      const res = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await fetchGenerateStream(
+        {
           type: "story",
           context: epic.content,
           title: "User Stories",
           agentPrompts,
-        }),
-      })
-      if (!res.ok) {
-        const d = await res.json()
-        throw new Error(d.error ?? "Generation failed")
-      }
-      const data = await res.json()
+        },
+        (preview) => pushPlanningPreview(preview, onPlanning)
+      )
+      await settleBeforeArtifact()
       const storyBlocks = data.content.split(/(?=\*\*Story \d)/g).filter(Boolean)
       if (storyBlocks.length > 1) {
         storyBlocks.forEach((block: string, j: number) => {
@@ -287,21 +290,16 @@ export async function runAgentGeneration(
     for (let i = 0; i < parentArtifacts.length; i++) {
       const story = parentArtifacts[i]
       onProgress(Math.round(10 + (i / parentArtifacts.length) * 80))
-      const res = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await fetchGenerateStream(
+        {
           type: "test_case",
           context: story.content,
           title: "Test Cases",
           agentPrompts,
-        }),
-      })
-      if (!res.ok) {
-        const d = await res.json()
-        throw new Error(d.error ?? "Generation failed")
-      }
-      const data = await res.json()
+        },
+        (preview) => pushPlanningPreview(preview, onPlanning)
+      )
+      await settleBeforeArtifact()
       addArtifact({
         projectId,
         parentId: story.id,
@@ -327,22 +325,17 @@ export async function runAgentGeneration(
       .map((s) => `### ${s.title}\n${s.content}`)
       .join("\n\n---\n\n")}`
     onProgress(25)
-    const res = await fetch("/api/ai/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const data = await fetchGenerateStream(
+      {
         type: "screen_layout",
         context,
         title: `Screen layouts: ${projectName}`,
         agentPrompts,
-      }),
-    })
+      },
+      (preview) => pushPlanningPreview(preview, onPlanning)
+    )
     onProgress(80)
-    if (!res.ok) {
-      const d = await res.json()
-      throw new Error(d.error ?? "Generation failed")
-    }
-    const data = await res.json()
+    await settleBeforeArtifact()
     addArtifact({
       projectId,
       parentId: null,

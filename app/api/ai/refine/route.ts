@@ -8,6 +8,11 @@ import {
   buildQuillUserMessage,
   resolveAgentPrompts,
 } from "@/lib/agent-prompt-build"
+import { messageContentToString } from "@/lib/openai-message-text"
+import {
+  appendWorkbenchPlanningSuffix,
+  splitWorkbenchPlanningAndDeliverable,
+} from "@/lib/ai-reasoning-deliverable"
 
 export const maxDuration = 60
 
@@ -17,15 +22,23 @@ export async function POST(req: NextRequest) {
     return new Response("Unauthorized", { status: 401 })
   }
 
-  const body: {
+  const body = (await req.json()) as {
     title: string
     type: ArtifactType
     content: string
     feedback: string
     agentPrompts?: Partial<AgentPromptsState> | null
-  } = await req.json()
+    stream?: boolean
+  }
 
-  const { title, type, content, feedback, agentPrompts: promptsPartial } = body
+  const {
+    title,
+    type,
+    content,
+    feedback,
+    agentPrompts: promptsPartial,
+    stream: useStream,
+  } = body
   if (!content?.trim() || !feedback?.trim()) {
     return NextResponse.json(
       { error: "Content and feedback are required." },
@@ -45,22 +58,50 @@ export async function POST(req: NextRequest) {
   }
 
   const prompts = resolveAgentPrompts(promptsPartial ?? null)
-  const userMessage = buildQuillUserMessage(
-    type,
-    title,
-    content,
-    feedback,
-    prompts
+  const userMessage = appendWorkbenchPlanningSuffix(
+    buildQuillUserMessage(type, title, content, feedback, prompts)
   )
 
   const openai = new OpenAI({ apiKey })
+
+  if (useStream) {
+    const s = await openai.chat.completions.create({
+      model: "gpt-4o",
+      stream: true,
+      messages: [{ role: "user", content: userMessage }],
+      temperature: 0.5,
+      max_tokens: 4400,
+    })
+    const encoder = new TextEncoder()
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of s) {
+            const text = chunk.choices[0]?.delta?.content || ""
+            if (text) controller.enqueue(encoder.encode(text))
+          }
+        } finally {
+          controller.close()
+        }
+      },
+    })
+    return new Response(readableStream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    })
+  }
+
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [{ role: "user", content: userMessage }],
     temperature: 0.5,
-    max_tokens: 4000,
+    max_tokens: 4400,
   })
 
-  const refined = completion.choices[0].message.content ?? ""
-  return NextResponse.json({ content: refined })
+  const raw = messageContentToString(completion.choices[0].message.content)
+  const { planning, deliverable } = splitWorkbenchPlanningAndDeliverable(raw)
+  const refined = deliverable.trim() ? deliverable.trim() : raw.trim()
+  return NextResponse.json({
+    content: refined,
+    planning: planning.trim() || null,
+  })
 }

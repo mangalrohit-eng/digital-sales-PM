@@ -17,10 +17,21 @@ import {
 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import type { ChatMessage } from "@/lib/types"
+import { PROJECT_STATUS_LABELS } from "@/lib/types"
 import { AGENT_SAGE } from "@/lib/agents"
 import { toast } from "sonner"
 import { renderMarkdown } from "@/lib/markdown-html"
 import { formatShortRelativePast } from "@/lib/date-utils"
+import { useWorkbenchAgentBusy } from "@/components/project/workbench-agent-busy-context"
+import {
+  buildInitiativeBriefGenerateDetail,
+  buildInitiativeBriefRefineDetail,
+} from "@/lib/workbench-agent-activity-builders"
+import {
+  fetchInitiativeBriefStream,
+  fetchRefineStream,
+  settleBeforeArtifact,
+} from "@/lib/ai-stream-client"
 
 interface BrainstormTabProps {
   projectId: string
@@ -63,6 +74,11 @@ export function BrainstormTab({
   croContext,
   userName,
 }: BrainstormTabProps) {
+  const {
+    begin: beginAgentBusy,
+    end: endAgentBusy,
+    patchActiveDetail,
+  } = useWorkbenchAgentBusy()
   const { getProject, updateProject, updateArtifact } = useAppStore()
   const allArtifacts = useAppStore((s) => s.artifacts)
 
@@ -77,6 +93,8 @@ export function BrainstormTab({
     [allArtifacts, projectId]
   )
 
+  /** Any initiative_brief row in the store (including empty drafts). */
+  const hasAnyBriefArtifact = workspaceItems.length > 0
   const hasWorkspaceContent = useMemo(
     () => workspaceItems.some((a) => a.content?.trim()),
     [workspaceItems]
@@ -130,18 +148,44 @@ export function BrainstormTab({
 
   const projectContextForApi = useMemo(() => {
     const lines = [`Initiative: ${projectName.trim() || "(unnamed)"}`]
+    if (project) {
+      lines.push(`Status: ${PROJECT_STATUS_LABELS[project.status]}`)
+      const role = project.ownerRole?.trim()
+      lines.push(
+        role
+          ? `Owner: ${project.owner} (${role})`
+          : `Owner: ${project.owner}`
+      )
+    }
     if (description) {
       lines.push(`Description:\n${description}`)
     } else {
       lines.push(
-        "Description: (not provided yet—offer to help draft one if useful)"
+        "Description: (none on file—infer a working problem statement from the initiative name and product context; note assumptions under Open questions)"
       )
     }
     if (croContext.trim()) {
       lines.push(`Product / funnel context:\n${croContext.trim()}`)
+    } else {
+      lines.push(
+        "Product / funnel context: (none on file—infer typical Spectrum.com digital sales scope only where helpful; list confirmations under Open questions)"
+      )
+    }
+    const hist = project?.chatHistory?.filter((m) => m.content?.trim()) ?? []
+    if (hist.length > 0) {
+      const tail = hist.slice(-16)
+      lines.push(
+        `Prior initiative chat (most recent last):\n${tail
+          .map((m) =>
+            m.role === "user"
+              ? `PM: ${m.content.trim()}`
+              : `Assistant: ${m.content.trim()}`
+          )
+          .join("\n")}`
+      )
     }
     return lines.join("\n\n")
-  }, [projectName, description, croContext])
+  }, [projectName, description, croContext, project])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -150,25 +194,33 @@ export function BrainstormTab({
   const runGenerate = useCallback(async () => {
     setGenerating(true)
     setGenProgress(0)
+    beginAgentBusy(
+      buildInitiativeBriefGenerateDetail({
+        projectName,
+        description,
+        croContext,
+        contextBlockChars: projectContextForApi.length,
+      })
+    )
     const tick = setInterval(() => {
       setGenProgress((p) => (p < 88 ? p + 9 : p))
     }, 280)
     try {
-      const res = await fetch("/api/ai/initiative-brief", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await fetchInitiativeBriefStream(
+        {
           messages: [],
           projectContext: projectContextForApi,
           previousBrief: "",
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data.error ?? "Could not generate initiative brief")
-      }
-      const brief = typeof data.brief === "string" ? data.brief.trim() : ""
+        },
+        (preview) => {
+          const t = preview.trim()
+          if (t) patchActiveDetail({ planning: t })
+        },
+        { projectContext: projectContextForApi, transcript: "" }
+      )
+      const brief = data.brief.trim()
       if (!brief) throw new Error("Empty brief response")
+      await settleBeforeArtifact()
 
       const state = useAppStore.getState()
       const items = state.artifacts.filter(
@@ -230,10 +282,21 @@ export function BrainstormTab({
       toast.error(msg)
     } finally {
       clearInterval(tick)
+      endAgentBusy()
       setGenerating(false)
       setTimeout(() => setGenProgress(0), 600)
     }
-  }, [projectContextForApi, projectId, projectName, selectedId])
+  }, [
+    beginAgentBusy,
+    croContext,
+    description,
+    endAgentBusy,
+    patchActiveDetail,
+    projectContextForApi,
+    projectId,
+    projectName,
+    selectedId,
+  ])
 
   const sendChat = async () => {
     if (!selected || !chatInput.trim() || refining || selected.published) return
@@ -244,22 +307,31 @@ export function BrainstormTab({
     const feedback = buildRefineFeedback(text, prior)
 
     setRefining(true)
+    beginAgentBusy(
+      buildInitiativeBriefRefineDetail({
+        title: selected.title,
+        draftChars: selected.content?.trim().length ?? 0,
+        instruction: text,
+        workspaceChatTurns: prior.length,
+      })
+    )
     try {
-      const res = await fetch("/api/ai/refine", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await fetchRefineStream(
+        {
           title: selected.title,
           type: selected.type,
           content: selected.content,
           feedback,
           agentPrompts: useAppStore.getState().agentPrompts,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? "Update failed")
-      const next = data.content as string
+        },
+        (preview) => {
+          const t = preview.trim()
+          if (t) patchActiveDetail({ planning: t })
+        }
+      )
+      const next = data.content
       if (!next?.trim()) throw new Error("Empty response")
+      await settleBeforeArtifact()
 
       const userMsg: ChatMessage = { role: "user", content: text }
       const asstMsg: ChatMessage = {
@@ -275,6 +347,7 @@ export function BrainstormTab({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed")
     } finally {
+      endAgentBusy()
       setRefining(false)
     }
   }
@@ -300,11 +373,10 @@ export function BrainstormTab({
     toast.success("Workspace chat cleared")
   }
 
-  const hasWorkspaceItems = hasWorkspaceContent
-  const generateLabel = hasWorkspaceItems
+  const generateLabel = hasWorkspaceContent
     ? "Regenerate initiative brief"
     : "Generate initiative brief"
-  const generateLabelCompact = hasWorkspaceItems ? "Regenerate" : "Generate"
+  const generateLabelCompact = hasWorkspaceContent ? "Regenerate" : "Generate"
 
   const generateButtonCompact = (
     <Button
@@ -367,7 +439,7 @@ export function BrainstormTab({
               {workspaceItems.length} in workspace
             </Badge>
           </div>
-          {hasWorkspaceItems ? generateButtonCompact : null}
+          {hasAnyBriefArtifact ? generateButtonCompact : null}
         </div>
         <p className="max-w-2xl text-sm text-muted-foreground">
           {DISCOVERY_DESCRIPTION}
@@ -383,7 +455,7 @@ export function BrainstormTab({
         </div>
       )}
 
-      {!hasWorkspaceItems ? (
+      {!hasAnyBriefArtifact ? (
         <div className="workbench-pane-scroll flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto rounded-xl border border-dashed border-border bg-muted/15 px-6 py-12 text-center sm:py-14">
           <MessageSquare className="mb-3 h-10 w-10 text-muted-foreground/40" />
           <p className="mb-1 font-medium">No initiative brief in this workspace</p>
@@ -612,7 +684,12 @@ export function BrainstormTab({
                   />
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Select a brief in the list or generate a new draft.
+                    This draft is empty. Use{" "}
+                    <span className="font-medium text-foreground/80">
+                      {generateLabelCompact}
+                    </span>{" "}
+                    above to fill it from your Overview context, or pick another
+                    brief in the list.
                   </p>
                 )}
               </div>

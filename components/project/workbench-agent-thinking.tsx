@@ -1,205 +1,86 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
-  BrainCircuit,
+  BookMarked,
   BookOpen,
-  FileStack,
-  GitBranch,
+  BrainCircuit,
+  Cloud,
+  Database,
+  FileText,
+  Inbox,
   Kanban,
-  LayoutTemplate,
+  Layers,
   Library,
+  LineChart,
+  Loader2,
+  PenTool,
+  SlidersHorizontal,
+  Target,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { useWorkbenchAgentBusy } from "@/components/project/workbench-agent-busy-context"
+import {
+  ACTIVITY_HEADLINE,
+  type WorkbenchAgentSourceTag,
+} from "@/lib/workbench-agent-activity"
 
-/** Demo vision: agent grounds answers in connected enterprise knowledge, not chat alone. */
-type KnowledgeSource = "git" | "figma" | "confluence" | "jira" | "wiki" | "artifacts"
-
-const SOURCE_META: Record<
-  KnowledgeSource,
-  { short: string; Icon: LucideIcon }
-> = {
-  git: { short: "Git", Icon: GitBranch },
-  figma: { short: "Figma", Icon: LayoutTemplate },
-  confluence: { short: "Confluence", Icon: BookOpen },
-  jira: { short: "Jira", Icon: Kanban },
-  wiki: { short: "Wiki", Icon: Library },
-  artifacts: { short: "Library", Icon: FileStack },
+const SOURCE_ICON: Record<string, LucideIcon> = {
+  openai: Cloud,
+  prompts: SlidersHorizontal,
+  initiative: Target,
+  brief: FileText,
+  cro: LineChart,
+  workspace: Inbox,
+  "workspace-brd": FileText,
+  "workspace-epic": Layers,
+  "workspace-story": BookOpen,
+  library: Library,
 }
 
-interface ThinkingBeat {
-  text: string
-  sources: KnowledgeSource[]
+function SourceChip({ tag }: { tag: WorkbenchAgentSourceTag }) {
+  const Icon = SOURCE_ICON[tag.id] ?? Database
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground sm:text-[11px]">
+      <Icon className="size-3 shrink-0 opacity-80" strokeWidth={2} aria-hidden />
+      {tag.label}
+    </span>
+  )
 }
 
-const GLOBAL_BEATS: ThinkingBeat[] = [
-  {
-    text: "Looking at previous code in git—blame and recent commits on the services this initiative touches…",
-    sources: ["git"],
-  },
-  {
-    text: "Evaluating design patterns from Figma: component variants, auto-layout, and token usage against the stories…",
-    sources: ["figma"],
-  },
-  {
-    text: "Searching Confluence for platform standards, NFRs, and ADRs that should constrain the draft…",
-    sources: ["confluence"],
-  },
-  {
-    text: "Cross-referencing the team wiki for auth flows, telemetry, and error-handling conventions…",
-    sources: ["wiki", "confluence"],
-  },
-  {
-    text: "Checking Jira for open defects and in-flight work on comparable journeys before suggesting scope…",
-    sources: ["jira"],
-  },
-  {
-    text: "Scanning the artifact library for reusable epics, stories, and test patterns to stay consistent…",
-    sources: ["artifacts"],
-  },
-  {
-    text: "Diffing prior merges to see how similar flows shipped without breaking downstream consumers…",
-    sources: ["git"],
-  },
-  {
-    text: "Reasoning: if we accept this requirement as stated, what new edge cases appear in downstream tests?",
-    sources: ["artifacts"],
-  },
-  {
-    text: "Weighing stakeholder phrasing in the brief against measurable acceptance criteria and metrics…",
-    sources: ["confluence", "artifacts"],
-  },
-  {
-    text: "Prioritizing what unblocks the next epic versus nice-to-haves that expand UAT surface area…",
-    sources: ["jira", "artifacts"],
-  },
-  {
-    text: "Flagging ambiguous language that could widen scope—proposing sharper definitions before finalize…",
-    sources: ["wiki"],
-  },
-  {
-    text: "Grounding the next suggestion in published artifacts so the library stays the source of truth…",
-    sources: ["artifacts", "confluence"],
-  },
+const REMOTE_INTEGRATIONS: { id: string; label: string; icon: LucideIcon }[] = [
+  { id: "confluence", label: "Confluence", icon: BookMarked },
+  { id: "jira", label: "Jira", icon: Kanban },
+  { id: "figma", label: "Figma", icon: PenTool },
 ]
 
-const TAB_CONTEXT: Record<string, ThinkingBeat[]> = {
-  overview: [
-    {
-      text: "Synthesizing initiative health from drafts, publications, and export readiness across stages…",
-      sources: ["artifacts", "jira"],
-    },
-    {
-      text: "Connecting overview metrics to what still needs refinement before the next handoff…",
-      sources: ["artifacts"],
-    },
-  ],
-  brainstorm: [
-    {
-      text: "Preserving discovery nuance while steering notes toward themes the BRD can own…",
-      sources: ["wiki", "confluence"],
-    },
-    {
-      text: "Relating CRO context to risks worth capturing—checking Confluence for past initiative learnings…",
-      sources: ["confluence"],
-    },
-  ],
-  "agent-brd": [
-    {
-      text: "Tracing business outcomes to verifiable success signals; pulling constraints from Confluence initiative pages…",
-      sources: ["confluence", "artifacts"],
-    },
-    {
-      text: "Reasoning: which requirements are contractual vs aspirational, and how do we phrase them safely?",
-      sources: ["wiki"],
-    },
-  ],
-  "agent-epic": [
-    {
-      text: "Clustering capabilities into epics; glancing at git ownership boundaries for realistic splits…",
-      sources: ["git", "artifacts"],
-    },
-    {
-      text: "Checking Jira epics on adjacent programs to avoid duplicate themes and conflicting priorities…",
-      sources: ["jira"],
-    },
-  ],
-  "agent-story": [
-    {
-      text: "Decomposing epics into user-valuable slices; validating each against linked Figma states…",
-      sources: ["figma", "artifacts"],
-    },
-    {
-      text: "Reasoning: does this story stand alone in a sprint, or does it imply hidden dependency stories?",
-      sources: ["jira", "git"],
-    },
-  ],
-  "agent-test": [
-    {
-      text: "Deriving negative paths and data edge cases; aligning expected results with Confluence platform behavior…",
-      sources: ["confluence", "artifacts"],
-    },
-    {
-      text: "Cross-checking similar test cases in the library for regression hooks and naming consistency…",
-      sources: ["artifacts", "jira"],
-    },
-  ],
-  "agent-layout": [
-    {
-      text: "Translating story intent into frame-oriented specs; evaluating design patterns from Figma and the DS file…",
-      sources: ["figma", "wiki"],
-    },
-    {
-      text: "Reasoning: which breakpoints and empty states are implied but not written in the story?",
-      sources: ["figma", "confluence"],
-    },
-  ],
-  artifacts: [
-    {
-      text: "Respecting publication state and versions when comparing artifacts to export and Jira mappings…",
-      sources: ["artifacts", "jira"],
-    },
-    {
-      text: "Searching Confluence for terminology that should match titles and descriptions in the library…",
-      sources: ["confluence", "artifacts"],
-    },
-  ],
-  export: [
-    {
-      text: "Validating field mappings before push; re-reading linked Jira epics to avoid duplicate tickets…",
-      sources: ["jira", "artifacts"],
-    },
-    {
-      text: "Looking at git release tags and changelogs to align export summaries with what engineering already shipped…",
-      sources: ["git", "jira"],
-    },
-  ],
-}
-
-function buildRotation(activeTab: string): ThinkingBeat[] {
-  const extra = TAB_CONTEXT[activeTab] ?? []
-  const out: ThinkingBeat[] = []
-  let a = 0
-  let b = 0
-  while (a < GLOBAL_BEATS.length || b < extra.length) {
-    if (a < GLOBAL_BEATS.length) {
-      out.push(GLOBAL_BEATS[a]!)
-      a += 1
-    }
-    if (b < extra.length) {
-      out.push(extra[b]!)
-      b += 1
-    }
-  }
-  return out.length > 0
-    ? out
-    : [
-        {
-          text: "Grounding responses in your initiative context, artifacts, and connected systems.",
-          sources: ["artifacts"],
-        },
-      ]
+function DisconnectedIntegrationChip({
+  label,
+  icon: Icon,
+}: {
+  label: string
+  icon: LucideIcon
+}) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-dashed border-border/60 bg-muted/25 px-2 py-0.5 text-[10px] font-medium text-muted-foreground/65 sm:text-[11px]"
+      title={`${label} is not connected—this demo does not query live ${label}.`}
+    >
+      <span
+        className="relative inline-flex size-3.5 shrink-0 items-center justify-center"
+        aria-hidden
+      >
+        <Icon className="size-3 opacity-55" strokeWidth={2} />
+        <span className="pointer-events-none absolute left-1/2 top-1/2 h-px w-[calc(100%+6px)] -translate-x-1/2 -translate-y-1/2 rotate-[-38deg] bg-muted-foreground/50" />
+      </span>
+      <span className="line-through decoration-muted-foreground/35 decoration-1">
+        {label}
+      </span>
+    </span>
+  )
 }
 
 interface WorkbenchAgentThinkingProps {
@@ -208,80 +89,156 @@ interface WorkbenchAgentThinkingProps {
 }
 
 export function WorkbenchAgentThinking({
-  activeTab,
+  activeTab: _activeTab,
   className,
 }: WorkbenchAgentThinkingProps) {
-  const rotation = useMemo(() => buildRotation(activeTab), [activeTab])
-  const [index, setIndex] = useState(0)
+  const {
+    busyCount,
+    activeDetail,
+    recentPlanning,
+    dismissRecentPlanning,
+  } = useWorkbenchAgentBusy()
+
+  const inFlight = busyCount > 0 && activeDetail != null
+  const completed = !inFlight && recentPlanning != null
 
   useEffect(() => {
-    setIndex(0)
-  }, [activeTab])
+    if (!completed || !recentPlanning) return
+    const id = window.setTimeout(() => dismissRecentPlanning(), 5000)
+    return () => window.clearTimeout(id)
+  }, [completed, recentPlanning, dismissRecentPlanning])
 
-  useEffect(() => {
-    if (rotation.length <= 1) return
-    const id = window.setInterval(() => {
-      setIndex((i) => (i + 1) % rotation.length)
-    }, 5200)
-    return () => window.clearInterval(id)
-  }, [rotation.length])
+  if (!inFlight && !completed) return null
 
-  const beat = rotation[index]!
-  const { text: line, sources } = beat
+  const headline = inFlight
+    ? ACTIVITY_HEADLINE[activeDetail!.kind]
+    : recentPlanning!.headline
+  const planningText = inFlight
+    ? (activeDetail!.planning?.trim() ?? "")
+    : recentPlanning!.planning
+  const sources = inFlight ? activeDetail!.sources : recentPlanning!.sources
+
+  const showThinking = inFlight && !planningText
 
   return (
     <div
       role="status"
       aria-live="polite"
-      aria-atomic="true"
+      aria-atomic="false"
       className={cn(
         "shrink-0 border-t border-border/70 bg-background/92 px-3 py-2.5 shadow-[0_-8px_28px_-14px_oklch(0_0_0/0.14)] backdrop-blur-md sm:px-4 sm:py-3",
         "pb-[max(0.625rem,env(safe-area-inset-bottom))]",
+        completed && "border-emerald-500/20 bg-emerald-500/[0.04]",
         className
       )}
     >
       <div className="mx-auto flex max-w-6xl min-w-0 items-start gap-2.5 sm:gap-3">
-        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+        <div
+          className={cn(
+            "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border text-primary",
+            inFlight
+              ? "border-primary/20 bg-primary/10"
+              : "border-emerald-500/25 bg-emerald-500/10"
+          )}
+        >
           <BrainCircuit className="size-4" strokeWidth={2} aria-hidden />
         </div>
-        <div className="min-w-0 flex-1 pt-0.5">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-[11px]">
-              Agent thinking
+        <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+          <div className="flex w-full min-w-0 items-start gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+                Request status
+              </p>
+              <span
+                className={cn(
+                  "rounded-md border px-2 py-0.5 text-[10px] font-semibold sm:text-[11px]",
+                  inFlight
+                    ? "border-primary/25 bg-primary/8 text-primary"
+                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+                )}
+                title={inFlight ? "Operation in progress" : "Last request finished"}
+              >
+                {headline}
+              </span>
+              {inFlight ? (
+                <span className="rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground sm:text-[11px]">
+                  In progress
+                </span>
+              ) : (
+                <span className="rounded-md border border-emerald-500/25 bg-emerald-500/5 px-2 py-0.5 text-[10px] font-medium text-emerald-800/90 dark:text-emerald-200/90 sm:text-[11px]">
+                  Completed
+                </span>
+              )}
+            </div>
+            {completed ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => dismissRecentPlanning()}
+                aria-label="Dismiss planning panel"
+              >
+                <X className="size-3.5" strokeWidth={2} aria-hidden />
+              </Button>
+            ) : null}
+          </div>
+
+          <div>
+            {showThinking ? (
+              <div
+                className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/25 px-2.5 py-2 text-[11px] font-medium text-muted-foreground sm:text-xs"
+                aria-busy="true"
+                aria-label="Thinking"
+              >
+                <Loader2
+                  className="size-3.5 shrink-0 animate-spin text-primary/80"
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <span>Thinking…</span>
+              </div>
+            ) : planningText ? (
+              <div
+                className="max-h-44 overflow-y-auto whitespace-pre-wrap rounded-md border border-border/60 bg-muted/30 px-2.5 py-2 text-[11px] leading-relaxed text-foreground/90 [text-wrap:pretty] sm:max-h-52 sm:text-xs"
+                aria-label="Model planning from this response"
+              >
+                {planningText}
+              </div>
+            ) : null}
+          </div>
+
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+              Tools this model can use
             </p>
-            <span
-              className="hidden h-3 w-px bg-border/80 sm:block"
-              aria-hidden
-            />
             <div
-              className="flex flex-wrap items-center gap-1.5"
-              aria-label="Knowledge sources in context"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1.5"
+              aria-label="Tools available to the model and integrations not in use"
             >
-              {sources.map((key, si) => {
-                const meta = SOURCE_META[key]
-                const Icon = meta.Icon
-                return (
-                  <span
-                    key={`${index}-${si}-${key}`}
-                    className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground animate-in fade-in-0 zoom-in-95 duration-300 sm:text-[11px]"
-                  >
-                    <Icon
-                      className="size-3 shrink-0 opacity-80"
-                      strokeWidth={2}
-                      aria-hidden
-                    />
-                    {meta.short}
-                  </span>
-                )
-              })}
+              <div className="flex flex-wrap gap-1.5" aria-label="Sent to your OpenAI key">
+                {sources.map((tag) => (
+                  <SourceChip key={`${tag.id}-${tag.label}`} tag={tag} />
+                ))}
+              </div>
+              <span
+                className="hidden h-4 w-px shrink-0 bg-border/70 sm:block"
+                aria-hidden
+              />
+              <span className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/80 sm:text-[10px]">
+                  Not connected
+                </span>
+                {REMOTE_INTEGRATIONS.map(({ id, label, icon }) => (
+                  <DisconnectedIntegrationChip
+                    key={id}
+                    label={label}
+                    icon={icon}
+                  />
+                ))}
+              </span>
             </div>
           </div>
-          <p
-            key={`${activeTab}-${index}`}
-            className="mt-1.5 text-[12px] leading-snug text-foreground/90 transition-opacity duration-300 animate-in fade-in-0 sm:text-[13px] sm:leading-relaxed"
-          >
-            {line}
-          </p>
         </div>
       </div>
     </div>

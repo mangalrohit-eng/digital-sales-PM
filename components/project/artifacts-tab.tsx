@@ -39,6 +39,9 @@ import { formatDistanceToNow } from "@/lib/date-utils"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { isPublishedToLibrary } from "@/lib/artifact-published"
 import { renderMarkdown } from "@/lib/markdown-html"
+import { useWorkbenchAgentBusy } from "@/components/project/workbench-agent-busy-context"
+import { fetchRefineStream, settleBeforeArtifact } from "@/lib/ai-stream-client"
+import { buildLibraryRefineDetail } from "@/lib/workbench-agent-activity-builders"
 
 const TYPE_ICONS: Record<ArtifactType, React.ElementType> = {
   initiative_brief: Target,
@@ -162,6 +165,11 @@ function ArtifactDetail({
   userRole: string
   userName: string
 }) {
+  const {
+    begin: beginAgentBusy,
+    end: endAgentBusy,
+    patchActiveDetail,
+  } = useWorkbenchAgentBusy()
   const { updateArtifact, deleteArtifact, addComment } = useAppStore()
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState(artifact.content)
@@ -216,24 +224,31 @@ function ArtifactDetail({
       return
     }
     setRefining(true)
+    beginAgentBusy(
+      buildLibraryRefineDetail({
+        title: artifact.title,
+        typeLabel: artifact.type,
+        draftChars: artifact.content?.trim().length ?? 0,
+        feedbackPreview: refineFeedback.trim(),
+      })
+    )
     try {
-      const res = await fetch("/api/ai/refine", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await fetchRefineStream(
+        {
           title: artifact.title,
           type: artifact.type,
           content: artifact.content,
           feedback: refineFeedback.trim(),
           agentPrompts: useAppStore.getState().agentPrompts,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data.error ?? "Refinement failed")
-      }
-      const next = data.content as string
+        },
+        (preview) => {
+          const t = preview.trim()
+          if (t) patchActiveDetail({ planning: t })
+        }
+      )
+      const next = data.content
       if (!next?.trim()) throw new Error("Empty response")
+      await settleBeforeArtifact()
       updateArtifact(artifact.id, { content: next.trim() })
       addComment(artifact.id, {
         author: userName,
@@ -245,6 +260,7 @@ function ArtifactDetail({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Refinement failed")
     } finally {
+      endAgentBusy()
       setRefining(false)
     }
   }
