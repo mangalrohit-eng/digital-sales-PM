@@ -164,7 +164,7 @@ export default function ProjectPage({ params }: PageProps) {
       label: "Artifacts",
       icon: FileStack,
       badge: totalCount > 0 ? String(totalCount) : null,
-      step: 3,
+      step: null,
     },
     {
       value: "export" as const,

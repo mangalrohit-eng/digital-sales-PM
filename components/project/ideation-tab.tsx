@@ -46,6 +46,7 @@ import {
   mergeSelectedIdeationIntoCroContext,
   mergeIdeationIntoCroContext,
 } from "@/lib/ideation-context-merge"
+import { WorkbenchCollapsibleChat } from "@/components/project/workbench-collapsible-chat"
 import type { ChatMessage, IdeationIdea, IdeationWorkspace } from "@/lib/types"
 import { AGENT_SCOUT } from "@/lib/agents"
 
@@ -433,134 +434,148 @@ export function IdeationTab({
   )
 
   const chatPanel = (
-    <div className="flex min-h-0 min-h-[10rem] flex-[1.15] flex-col overflow-hidden rounded-xl border border-border bg-background">
-      <div className="shrink-0 border-b border-border bg-muted/30 px-4 py-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Chat
-            </span>
-            <Badge
-              variant="secondary"
-              className="bg-primary/10 text-[10px] text-primary"
-            >
-              {AGENT_SCOUT.name}
-            </Badge>
-            <Badge variant="outline" className="text-[10px]">
-              Live
-            </Badge>
-          </div>
-          <div className="flex flex-wrap items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1 px-2 text-[11px]"
-              disabled={!ideationChat.length || chatBusy}
-              onClick={clearIdeationChat}
-            >
-              <RotateCcw className="h-3 w-3" />
-              Clear
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="h-7 gap-1 px-2 text-[11px]"
-              disabled={
-                !hasStructured ||
-                ideationChat.length < 2 ||
-                mergeBusy ||
-                chatBusy
-              }
-              onClick={() => void applyChatToWorkspace()}
-            >
-              {mergeBusy ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : null}
-              Apply chat to workspace
-            </Button>
-          </div>
-        </div>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          Apply = merge chat into ideas (no search). Regenerate = new research.
-        </p>
-      </div>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-3 p-3">
-          {ideationChat.length === 0 && !chatBusy ? (
-            <p className="px-1 text-xs italic text-muted-foreground">
-              e.g. new angle on checkout, or sharpen a tagline.
-            </p>
-          ) : null}
-          {ideationChat.map((m, i) => (
-            <div
-              key={`${i}-${m.role}`}
-              className={`rounded-xl px-3 py-2 text-sm ${
-                m.role === "user"
-                  ? "ml-3 bg-primary/10"
-                  : "mr-3 bg-muted"
-              }`}
-            >
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {m.role === "user" ? userName : AGENT_SCOUT.name}
-              </p>
-              <div
-                className="artifact-content artifact-preview prose-p:my-1 text-[13px] leading-relaxed"
-                dangerouslySetInnerHTML={{
-                  __html: renderMarkdown(m.content),
-                }}
-              />
-            </div>
-          ))}
-          {chatBusy && streamPreview ? (
-            <div className="mr-3 rounded-xl bg-muted px-3 py-2 text-sm">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <WorkbenchCollapsibleChat
+      storageKey={`charter-wb-chat:ideas:${projectId}`}
+      summary={
+        ideationChat.length > 0
+          ? `${ideationChat.length} message${ideationChat.length === 1 ? "" : "s"}`
+          : chatBusy
+            ? "In progress…"
+            : undefined
+      }
+      header={
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2 pr-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Chat
+              </span>
+              <Badge
+                variant="secondary"
+                className="bg-primary/10 text-[10px] text-primary"
+              >
                 {AGENT_SCOUT.name}
-              </p>
-              <div
-                className="artifact-content artifact-preview prose-p:my-1 text-[13px] leading-relaxed"
-                dangerouslySetInnerHTML={{
-                  __html: renderMarkdown(streamPreview),
-                }}
-              />
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">
+                Live
+              </Badge>
             </div>
-          ) : null}
-          {chatBusy && !streamPreview ? (
-            <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Scout is thinking…
+            <div className="flex flex-wrap items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 px-2 text-[11px]"
+                disabled={!ideationChat.length || chatBusy}
+                onClick={clearIdeationChat}
+              >
+                <RotateCcw className="h-3 w-3" />
+                Clear
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-7 gap-1 px-2 text-[11px]"
+                disabled={
+                  !hasStructured ||
+                  ideationChat.length < 2 ||
+                  mergeBusy ||
+                  chatBusy
+                }
+                onClick={() => void applyChatToWorkspace()}
+              >
+                {mergeBusy ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : null}
+                Apply chat to workspace
+              </Button>
             </div>
-          ) : null}
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
-      <div className="flex shrink-0 gap-2 border-t border-border bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <Textarea
-          value={chatInput}
-          onChange={(e) => setChatInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault()
-              void sendChat()
-            }
-          }}
-          placeholder="Message Scout… (Enter to send)"
-          className="min-h-[44px] max-h-[100px] resize-none text-sm"
-          rows={2}
-          disabled={chatBusy}
-        />
-        <Button
-          type="button"
-          size="icon"
-          className="h-11 w-11 shrink-0"
-          disabled={!chatInput.trim() || chatBusy}
-          onClick={() => void sendChat()}
-        >
-          <Send className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Apply = merge chat into ideas (no search). Regenerate = new research.
+          </p>
+        </>
+      }
+      body={
+        <>
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-3 p-3">
+              {ideationChat.length === 0 && !chatBusy ? (
+                <p className="px-1 text-xs italic text-muted-foreground">
+                  e.g. new angle on checkout, or sharpen a tagline.
+                </p>
+              ) : null}
+              {ideationChat.map((m, i) => (
+                <div
+                  key={`${i}-${m.role}`}
+                  className={`rounded-xl px-3 py-2 text-sm ${
+                    m.role === "user"
+                      ? "ml-3 bg-primary/10"
+                      : "mr-3 bg-muted"
+                  }`}
+                >
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {m.role === "user" ? userName : AGENT_SCOUT.name}
+                  </p>
+                  <div
+                    className="artifact-content artifact-preview prose-p:my-1 text-[13px] leading-relaxed"
+                    dangerouslySetInnerHTML={{
+                      __html: renderMarkdown(m.content),
+                    }}
+                  />
+                </div>
+              ))}
+              {chatBusy && streamPreview ? (
+                <div className="mr-3 rounded-xl bg-muted px-3 py-2 text-sm">
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {AGENT_SCOUT.name}
+                  </p>
+                  <div
+                    className="artifact-content artifact-preview prose-p:my-1 text-[13px] leading-relaxed"
+                    dangerouslySetInnerHTML={{
+                      __html: renderMarkdown(streamPreview),
+                    }}
+                  />
+                </div>
+              ) : null}
+              {chatBusy && !streamPreview ? (
+                <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Scout is thinking…
+                </div>
+              ) : null}
+              <div ref={bottomRef} />
+            </div>
+          </ScrollArea>
+          <div className="flex shrink-0 gap-2 border-t border-border bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <Textarea
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  void sendChat()
+                }
+              }}
+              placeholder="Message Scout… (Enter to send)"
+              className="min-h-[44px] max-h-[100px] resize-none text-sm"
+              rows={2}
+              disabled={chatBusy}
+            />
+            <Button
+              type="button"
+              size="icon"
+              className="h-11 w-11 shrink-0"
+              disabled={!chatInput.trim() || chatBusy}
+              onClick={() => void sendChat()}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </>
+      }
+    />
   )
 
   const directionsPanel = (

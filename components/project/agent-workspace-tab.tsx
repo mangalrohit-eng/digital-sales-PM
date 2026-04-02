@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner"
 import { formatShortRelativePast } from "@/lib/date-utils"
 import { useWorkbenchAgentBusy } from "@/components/project/workbench-agent-busy-context"
+import { WorkbenchCollapsibleChat } from "@/components/project/workbench-collapsible-chat"
 import type { ArtifactType } from "@/lib/types"
 import type { WorkbenchAgentActivityKind } from "@/lib/workbench-agent-activity"
 import {
@@ -667,86 +668,104 @@ export function AgentWorkspaceTab({
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden [grid-template-rows:minmax(0,1fr)_minmax(0,1.2fr)] lg:grid-cols-12 lg:grid-rows-1">
           <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden lg:col-span-4">
             {/* Chat — top left; list always below for parity with Stories */}
-            <div className="flex min-h-0 min-h-[10rem] flex-[1.15] flex-col overflow-hidden rounded-xl border border-border bg-background">
-            <div className="shrink-0 border-b border-border bg-muted/30 px-4 py-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Chat
-                </span>
-                <Badge variant="secondary" className="bg-primary/10 text-[10px] text-primary">
-                  Live updates on
-                </Badge>
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {agent.name} applies each message directly to this {step.navLabel.toLowerCase()} draft.
-              </p>
-            </div>
-              <ScrollArea className="min-h-0 flex-1">
-              <div className="space-y-3 p-3">
-                {(selected?.workspaceChat ?? []).length === 0 && (
-                  <p className="px-1 text-xs italic text-muted-foreground">
-                    e.g. “Tighten goals in section 2” or “Add KPI table under
-                    risks.”
-                  </p>
-                )}
-                {(selected?.workspaceChat ?? []).map((m, i) => (
-                  <div
-                    key={`${i}-${m.role}`}
-                    className={`rounded-xl px-3 py-2 text-sm ${
-                      m.role === "user"
-                        ? "ml-4 bg-primary/10"
-                        : "mr-4 bg-muted"
-                    }`}
-                  >
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {m.role === "user" ? userName : "Assistant"}
-                    </p>
-                    <p className="whitespace-pre-wrap leading-relaxed">
-                      {m.content}
-                    </p>
-                  </div>
-                ))}
-                {refining && (
-                  <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Updating artifact…
-                  </div>
-                )}
-                <div ref={bottomRef} />
-              </div>
-            </ScrollArea>
-              <div className="flex shrink-0 gap-2 border-t border-border bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <Textarea
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    void sendChat().catch((e) =>
-                      toast.error(aiClientErrorMessage(e))
-                    )
-                  }
-                }}
-                placeholder="Describe edits… (Enter to send, Shift+Enter for line)"
-                className="min-h-[44px] max-h-[100px] resize-none text-sm"
-                rows={2}
-                disabled={!selected || refining}
-              />
-              <Button
-                type="button"
-                size="icon"
-                className="h-11 w-11 shrink-0"
-                disabled={!selected || !chatInput.trim() || refining}
-                onClick={() =>
-                  void sendChat().catch((e) =>
-                    toast.error(aiClientErrorMessage(e))
-                  )
+            <WorkbenchCollapsibleChat
+              storageKey={`charter-wb-chat:${step.tab}:${projectId}`}
+              summary={(() => {
+                const n = selected?.workspaceChat?.length ?? 0
+                if (n > 0) {
+                  return `${n} message${n === 1 ? "" : "s"}`
                 }
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-            </div>
+                return refining ? "Updating…" : undefined
+              })()}
+              header={
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pr-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Chat
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-primary/10 text-[10px] text-primary"
+                    >
+                      Live updates on
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {agent.name} applies each message directly to this{" "}
+                    {step.navLabel.toLowerCase()} draft.
+                  </p>
+                </>
+              }
+              body={
+                <>
+                  <ScrollArea className="min-h-0 flex-1">
+                    <div className="space-y-3 p-3">
+                      {(selected?.workspaceChat ?? []).length === 0 && (
+                        <p className="px-1 text-xs italic text-muted-foreground">
+                          e.g. “Tighten goals in section 2” or “Add KPI table under
+                          risks.”
+                        </p>
+                      )}
+                      {(selected?.workspaceChat ?? []).map((m, i) => (
+                        <div
+                          key={`${i}-${m.role}`}
+                          className={`rounded-xl px-3 py-2 text-sm ${
+                            m.role === "user"
+                              ? "ml-4 bg-primary/10"
+                              : "mr-4 bg-muted"
+                          }`}
+                        >
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {m.role === "user" ? userName : agent.name}
+                          </p>
+                          <p className="whitespace-pre-wrap leading-relaxed">
+                            {m.content}
+                          </p>
+                        </div>
+                      ))}
+                      {refining && (
+                        <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Updating artifact…
+                        </div>
+                      )}
+                      <div ref={bottomRef} />
+                    </div>
+                  </ScrollArea>
+                  <div className="flex shrink-0 gap-2 border-t border-border bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                    <Textarea
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault()
+                          void sendChat().catch((e) =>
+                            toast.error(aiClientErrorMessage(e))
+                          )
+                        }
+                      }}
+                      placeholder="Describe edits… (Enter to send, Shift+Enter for line)"
+                      className="min-h-[44px] max-h-[100px] resize-none text-sm"
+                      rows={2}
+                      disabled={!selected || refining}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      className="h-11 w-11 shrink-0"
+                      disabled={!selected || !chatInput.trim() || refining}
+                      onClick={() =>
+                        void sendChat().catch((e) =>
+                          toast.error(aiClientErrorMessage(e))
+                        )
+                      }
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
+              }
+            />
 
             <div className="flex min-h-0 min-h-[8rem] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-muted/20">
               <p className="shrink-0 border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
