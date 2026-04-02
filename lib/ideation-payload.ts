@@ -55,7 +55,7 @@ export function parseIdeationPayload(raw: unknown): IdeationWorkspace | null {
     seen.add(uid)
     ideas.push({ ...idea, id: uid })
   })
-  if (ideas.length < 3) return null
+  if (ideas.length < 2) return null
   if (!landscapeMarkdown && !problemRestatement) return null
   return {
     problemRestatement:

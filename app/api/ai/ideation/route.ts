@@ -53,6 +53,25 @@ function extractJsonObject(text: string): unknown | null {
   }
 }
 
+/** Prefer API-parsed structured output, then parse raw text. */
+function ideationFromModelOutput(
+  outputText: string,
+  outputParsed: unknown | null | undefined
+): ReturnType<typeof parseIdeationPayload> {
+  if (outputParsed != null) {
+    const fromParsed = parseIdeationPayload(outputParsed)
+    if (fromParsed) return fromParsed
+  }
+  const extracted = extractJsonObject(outputText)
+  return parseIdeationPayload(extracted)
+}
+
+function responseLooksTruncated(response: {
+  incomplete_details?: { reason?: string } | null
+}): boolean {
+  return response.incomplete_details?.reason === "max_output_tokens"
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) {
@@ -98,13 +117,18 @@ export async function POST(req: NextRequest) {
 
   const openai = createRouteOpenAI(apiKey)
 
-  async function runWithTool(
-    toolType: "web_search_preview" | "web_search",
-    useJsonSchema: boolean
-  ) {
+  const schemaFormat = {
+    type: "json_schema" as const,
+    name: "ideation_workspace",
+    strict: true,
+    schema: IDEATION_JSON_SCHEMA as unknown as Record<string, unknown>,
+  }
+
+  /** Plain-text JSON fallback (no schema) when structured parse paths fail. */
+  async function runWithTool(toolType: "web_search_preview" | "web_search") {
     return openai.responses.create({
       model: "gpt-4o",
-      instructions: useJsonSchema ? INSTRUCTIONS_BASE : INSTRUCTIONS_JSON_ONLY,
+      instructions: INSTRUCTIONS_JSON_ONLY,
       input: userInput,
       tools:
         toolType === "web_search"
@@ -112,63 +136,90 @@ export async function POST(req: NextRequest) {
           : [{ type: "web_search_preview" as const }],
       tool_choice: "auto",
       include: ["web_search_call.action.sources"],
-      max_output_tokens: 6000,
+      max_output_tokens: 16_000,
       temperature: 0.35,
-      ...(useJsonSchema
-        ? {
-            text: {
-              format: {
-                type: "json_schema" as const,
-                name: "ideation_workspace",
-                strict: true,
-                schema: IDEATION_JSON_SCHEMA as unknown as {
-                  [key: string]: unknown
-                },
-              },
-            },
-          }
-        : {}),
     })
   }
 
-  async function executeIdeationRequest(): Promise<string> {
+  /**
+   * `responses.parse` attaches `output_parsed` for json_schema — more reliable than
+   * parsing `output_text` alone (avoids fence/preamble edge cases in prod).
+   */
+  async function runParseWithTool(toolType: "web_search_preview" | "web_search") {
+    return openai.responses.parse({
+      model: "gpt-4o",
+      instructions: INSTRUCTIONS_BASE,
+      input: userInput,
+      tools:
+        toolType === "web_search"
+          ? [{ type: "web_search" as const }]
+          : [{ type: "web_search_preview" as const }],
+      tool_choice: "auto",
+      include: ["web_search_call.action.sources"],
+      max_output_tokens: 16_000,
+      temperature: 0.35,
+      text: {
+        format: schemaFormat,
+      },
+    })
+  }
+
+  async function executeIdeationRequest(): Promise<
+    NonNullable<ReturnType<typeof parseIdeationPayload>>
+  > {
     let lastErr: unknown
+
     for (const tool of ["web_search_preview", "web_search"] as const) {
-      for (const useSchema of [true, false] as const) {
-        try {
-          const response = await runWithTool(tool, useSchema)
-          if (response.error) {
-            throw new Error(
-              response.error.message?.trim() || "Model response error"
-            )
-          }
-          const text = response.output_text?.trim() ?? ""
-          if (text) return text
-        } catch (e) {
-          lastErr = e
+      try {
+        const response = await runParseWithTool(tool)
+        if (response.error) {
+          throw new Error(
+            response.error.message?.trim() || "Model response error"
+          )
         }
+        if (responseLooksTruncated(response)) {
+          continue
+        }
+        const text = response.output_text?.trim() ?? ""
+        const op = (
+          response as { output_parsed?: unknown }
+        ).output_parsed
+        const ideation = ideationFromModelOutput(text, op)
+        if (ideation) return ideation
+      } catch (e) {
+        lastErr = e
       }
     }
+
+    for (const tool of ["web_search_preview", "web_search"] as const) {
+      try {
+        const response = await runWithTool(tool)
+        if (response.error) {
+          throw new Error(
+            response.error.message?.trim() || "Model response error"
+          )
+        }
+        if (responseLooksTruncated(response)) {
+          continue
+        }
+        const text = response.output_text?.trim() ?? ""
+        if (!text) continue
+        const ideation = ideationFromModelOutput(text, null)
+        if (ideation) return ideation
+      } catch (e) {
+        lastErr = e
+      }
+    }
+
     if (lastErr instanceof Error) throw lastErr
     throw new Error(
       openAiFailureMessage(lastErr) ||
-        "The model returned no text. Try again or shorten context."
+        "The model returned no usable ideation. Try again or shorten context."
     )
   }
 
   try {
-    const outputText = await executeIdeationRequest()
-    const parsed = extractJsonObject(outputText)
-    const ideation = parseIdeationPayload(parsed)
-    if (!ideation) {
-      return NextResponse.json(
-        {
-          error:
-            "Could not parse ideation JSON. Try again, or shorten project context.",
-        },
-        { status: 502 }
-      )
-    }
+    const ideation = await executeIdeationRequest()
     return NextResponse.json({ ideation })
   } catch (e) {
     return NextResponse.json(
