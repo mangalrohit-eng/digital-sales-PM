@@ -64,10 +64,9 @@ export function NewProjectDialog({
               New Digital Sales initiative
             </DialogTitle>
             <DialogDescription className="text-[13px] leading-relaxed text-muted-foreground">
-              Each initiative gets its own workspace: discovery chat, staged
-              generation for BRD through layouts, review and edits in Artifacts,
-              then push backlog items to Jira and layouts to Figma (BRD → Confluence is
-              optional). You can change details anytime from Overview.
+              Each initiative gets a workbench: Ideas and Brief, then staged
+              generation for BRD through layouts, review in Artifacts, and export
+              to Jira / Figma (Confluence optional). Edit context anytime on Overview.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -93,17 +92,15 @@ export function NewProjectDialog({
                   <li className="flex gap-2">
                     <ListChecks className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
                     <span>
-                      In <strong className="font-medium text-foreground/90">description</strong>, state
-                      the business outcome—not only the feature (e.g. “lift checkout completion” vs
-                      “new button”).
+                      Under <strong className="font-medium text-foreground/90">Problem Statement</strong>, state
+                      the outcome (e.g. “reduce cart abandonment”)—not only a feature name.
                     </span>
                   </li>
                   <li className="flex gap-2">
                     <ListChecks className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
                     <span>
-                      Optional <strong className="font-medium text-foreground/90">context</strong>{" "}
-                      below helps AI tailor BRDs, stories, and screen layouts (audience, funnel step,
-                      constraints, KPIs).
+                      <strong className="font-medium text-foreground/90">Additional thoughts</strong>{" "}
+                      are optional—KPIs, audience, constraints—for richer briefs and artifacts.
                     </span>
                   </li>
                 </ul>
@@ -128,35 +125,35 @@ export function NewProjectDialog({
 
             <div className="space-y-2">
               <Label htmlFor="description" className="text-sm">
-                Description
+                Problem Statement
               </Label>
               <Textarea
                 id="description"
-                placeholder="What you are trying to achieve, who it serves, and how success will be measured…"
+                placeholder="e.g. Reduce cart abandonment on mobile checkout"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={4}
+                rows={3}
                 required
-                className="min-h-[100px] resize-y text-[15px] leading-relaxed"
+                className="min-h-[88px] resize-y text-[15px] leading-relaxed"
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="context" className="text-sm">
-                Initiative context for Digital Sales{" "}
+                Additional thoughts{" "}
                 <span className="font-normal text-muted-foreground">
-                  (optional — improves AI generation)
+                  (optional)
                 </span>
               </Label>
               <Textarea
                 id="context"
-                placeholder="e.g. Primary audience is mobile shoppers. Drop-off spikes after address entry. Hypothesis: clearer serviceability and fewer fields before payment will improve completion. Target metric: +2% checkout completion in 90 days…"
+                placeholder="KPIs, audience, constraints—anything Scout, Sage, and your team should know…"
                 value={form.cro_context}
                 onChange={(e) =>
                   setForm({ ...form, cro_context: e.target.value })
                 }
-                rows={6}
-                className="min-h-[140px] resize-y text-[15px] leading-relaxed"
+                rows={5}
+                className="min-h-[120px] resize-y text-[15px] leading-relaxed"
               />
             </div>
 

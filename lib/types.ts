@@ -28,6 +28,26 @@ export interface ChatMessage {
   content: string
 }
 
+/** One solution direction from the Ideas tab (web-researched). */
+export interface IdeationIdea {
+  id: string
+  title: string
+  tagline: string
+  /** Markdown: scope, bets, UX implications for this direction. */
+  detailMarkdown: string
+  /** How this ties to landscape / best practices. */
+  researchBasis: string
+}
+
+/** Full Ideas workspace payload (from /api/ai/ideation). */
+export interface IdeationWorkspace {
+  problemRestatement: string
+  /** Competitive landscape, category benchmarks, best practices (markdown). */
+  landscapeMarkdown: string
+  ideas: IdeationIdea[]
+  sourcesMarkdown: string
+}
+
 export interface Artifact {
   id: string
   projectId: string
@@ -55,15 +75,27 @@ export interface Artifact {
 export interface Project {
   id: string
   name: string
+  /** Problem statement (Overview label: Problem Statement), e.g. reduce cart abandonment. */
   description: string
+  /** Optional extra context (constraints, KPIs, audience). */
   cro_context: string
-  /** Living summary from Discovery chat; fed into BRD generation. */
+  /** Living summary from Brief tab chat; fed into BRD generation. */
   initiativeBrief?: string
+  /** Structured Ideas workspace (research + directions). */
+  ideation?: IdeationWorkspace
+  /** Which `ideation.ideas[].id` is the focus for Brief / initiative brief (PM choice). */
+  selectedIdeationId?: string | null
+  /** ISO timestamp when ideation workspace was last generated. */
+  ideationUpdatedAt?: string
+  /** @deprecated Legacy single markdown blob; migrate via Regenerate on Ideas. */
+  ideationReadout?: string
   owner: string
   ownerRole: string
   createdAt: string
   status: ProjectStatus
   chatHistory: ChatMessage[]
+  /** Ideas tab chat with Scout (brainstorm / refine initiative ideas). */
+  ideationChat?: ChatMessage[]
 }
 
 export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {

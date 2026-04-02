@@ -43,7 +43,11 @@ import {
   buildWorkspaceGenerationActivityDetail,
   buildWorkspaceRefineDetail,
 } from "@/lib/workbench-agent-activity-builders"
-import { fetchRefineStream, settleBeforeArtifact } from "@/lib/ai-stream-client"
+import {
+  aiClientErrorMessage,
+  fetchRefineStream,
+  settleBeforeArtifact,
+} from "@/lib/ai-stream-client"
 
 function workspaceRefineKind(type: ArtifactType): WorkbenchAgentActivityKind {
   const m: Record<ArtifactType, WorkbenchAgentActivityKind> = {
@@ -388,7 +392,7 @@ export function AgentWorkspaceTab({
         onPlanning: (text) => patchActiveDetail({ planning: text }),
       })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Generation failed")
+      toast.error(aiClientErrorMessage(e))
     } finally {
       endAgentBusy()
       setGenerating(false)
@@ -443,7 +447,7 @@ export function AgentWorkspaceTab({
         workspaceChatRefinedAt: new Date().toISOString(),
       })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Update failed")
+      toast.error(aiClientErrorMessage(e))
     } finally {
       endAgentBusy()
       setRefining(false)
@@ -521,7 +525,9 @@ export function AgentWorkspaceTab({
   const generateButtonCompact = (
     <Button
       type="button"
-      onClick={() => void runGenerate()}
+      onClick={() =>
+        void runGenerate().catch((e) => toast.error(aiClientErrorMessage(e)))
+      }
       disabled={generating}
       size="sm"
       variant="outline"
@@ -545,7 +551,9 @@ export function AgentWorkspaceTab({
   const generateButtonEmpty = (
     <Button
       type="button"
-      onClick={() => void runGenerate()}
+      onClick={() =>
+        void runGenerate().catch((e) => toast.error(aiClientErrorMessage(e)))
+      }
       disabled={generating}
       className="h-10 gap-2 rounded-lg px-5 text-sm font-semibold shadow-sm"
     >
@@ -714,7 +722,9 @@ export function AgentWorkspaceTab({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
-                    void sendChat()
+                    void sendChat().catch((e) =>
+                      toast.error(aiClientErrorMessage(e))
+                    )
                   }
                 }}
                 placeholder="Describe edits… (Enter to send, Shift+Enter for line)"
@@ -727,7 +737,11 @@ export function AgentWorkspaceTab({
                 size="icon"
                 className="h-11 w-11 shrink-0"
                 disabled={!selected || !chatInput.trim() || refining}
-                onClick={() => void sendChat()}
+                onClick={() =>
+                  void sendChat().catch((e) =>
+                    toast.error(aiClientErrorMessage(e))
+                  )
+                }
               >
                 <Send className="h-4 w-4" />
               </Button>

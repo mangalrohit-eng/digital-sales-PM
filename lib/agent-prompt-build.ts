@@ -5,7 +5,7 @@ import {
 } from "./agent-prompt-defaults"
 
 const TYPE_LABELS: Record<ArtifactType, string> = {
-  initiative_brief: "Initiative brief (Discovery)",
+  initiative_brief: "Initiative brief (Brief tab)",
   brd: "Business Requirements Document",
   epic: "Epic",
   story: "User Story",
@@ -30,6 +30,7 @@ export function resolveAgentPrompts(
   if (!partial) return d
   return {
     sage: { ...d.sage, ...(partial.sage ?? {}) },
+    scout: { ...d.scout, ...(partial.scout ?? {}) },
     generation: { ...d.generation, ...(partial.generation ?? {}) },
     quill: partial.quill?.trim() ? partial.quill : d.quill,
   }
@@ -46,6 +47,25 @@ export function buildSageSystemContent(
     ? contextWrapTemplate.replace(/\{\{PROJECT_CONTEXT\}\}/g, ctx)
     : `${contextWrapTemplate}\n${ctx}`
   return `${systemPrompt}${wrap}`
+}
+
+/** Full system message for Ideas tab streaming chat. */
+export function buildScoutIdeationSystemContent(
+  projectContext: string,
+  ideasDigest: string,
+  selectedIdeaId: string | null,
+  prompts: AgentPromptsState
+): string {
+  const { systemPrompt, sessionContextTemplate } = prompts.scout
+  const digestDefault =
+    "(None yet — suggest running Research & generate ideas.)"
+  const digest = ideasDigest.trim() || digestDefault
+  const sel = selectedIdeaId?.trim() || "(none selected)"
+  const block = sessionContextTemplate
+    .replace(/\{\{PROJECT_CONTEXT\}\}/g, projectContext)
+    .replace(/\{\{IDEAS_DIGEST\}\}/g, digest)
+    .replace(/\{\{SELECTED_ID\}\}/g, sel)
+  return `${systemPrompt.trim()}\n\n${block}`.trim()
 }
 
 export function buildGenerationUserMessage(
@@ -90,6 +110,11 @@ export const PROMPT_PLACEHOLDER_HELP = {
     system: "Role and expertise (sent as the system message base).",
     contextWrap:
       "Appended when initiative context exists. Include exactly {{PROJECT_CONTEXT}} where the context should appear.",
+  },
+  scout: {
+    system: "Role for the Ideas tab (prepended to each chat completion).",
+    sessionContext:
+      "Include {{PROJECT_CONTEXT}}, {{IDEAS_DIGEST}}, and {{SELECTED_ID}} where those values should appear (defaults list all three sections).",
   },
   generation:
     "Each template must include {{CONTEXT}} exactly once — initiative or parent artifact content is inserted there.",

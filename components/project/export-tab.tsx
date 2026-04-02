@@ -755,8 +755,9 @@ export function ExportTab({ projectId, userRole }: ExportTabProps) {
         <CardContent className="space-y-4">
           {confluenceArtifacts.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No initiative brief or BRD in the library yet. Finalize them from
-              Discovery and the BRD workspace, approve if needed, then sync here.
+              No initiative brief or BRD in the library yet. Finalize from the{" "}
+              <strong className="font-medium text-foreground">Brief</strong> tab and{" "}
+              <strong className="font-medium text-foreground">BRD</strong> tab, approve if needed, then sync here.
             </p>
           ) : (
             <>

@@ -8,6 +8,15 @@ export interface AgentPromptsState {
     /** Appended when initiative context exists. Must include `{{PROJECT_CONTEXT}}`. */
     contextWrapTemplate: string
   }
+  /** Ideas tab chat (`/api/ai/ideation-chat`). */
+  scout: {
+    systemPrompt: string
+    /**
+     * Appended after the system prompt. Replace `{{PROJECT_CONTEXT}}`, `{{IDEAS_DIGEST}}`,
+     * `{{SELECTED_ID}}` with live values (defaults include all three section headers).
+     */
+    sessionContextTemplate: string
+  }
   generation: Record<ArtifactType, string>
   /** Must include `{{TITLE}}`, `{{TYPE_LABEL}}`, `{{CONTENT}}`, `{{FEEDBACK}}`, `{{REVISION_RULES}}`. */
   quill: string
@@ -41,8 +50,25 @@ Current initiative (ground your answers in this; do not ignore it for generic ad
 {{PROJECT_CONTEXT}}
 ---`,
     },
+    scout: {
+      systemPrompt: `You are Scout, the Ideas-tab strategist for Spectrum.com digital sales (cable/broadband: plans, eligibility, cart, checkout, disclosures).
+
+Your job is to help the PM explore **initiative ideas**—new solution directions, sharper framing of a selected idea, trade-off comparisons, and concrete copy or UX hints. Stay conversational and strategic; do **not** output the full structured JSON workspace in chat (that is produced by research and by **Apply chat to workspace**).
+
+Tone: concise markdown, short paragraphs and bullets when useful. Ground every suggestion in the project context and the current idea list when they exist.
+
+Remind the PM when relevant that they can **Apply chat to workspace** to merge this thread into structured ideas, or **Research & generate ideas** to refresh directions with web research.`,
+      sessionContextTemplate: `--- Project context ---
+{{PROJECT_CONTEXT}}
+
+--- Current initiative ideas (summary) ---
+{{IDEAS_DIGEST}}
+
+--- Selected initiative idea id ---
+{{SELECTED_ID}}`,
+    },
     generation: {
-      initiative_brief: `Initiative briefs are produced in Discovery (Sage) and refreshed by the initiative-brief API—not by this template. This entry exists so generation prompts stay complete in settings. Include {{CONTEXT}} once for tooling compatibility:
+      initiative_brief: `Initiative briefs are produced on the Brief tab and refreshed by the initiative-brief API—not by this template. This entry exists so generation prompts stay complete in settings. Include {{CONTEXT}} once for tooling compatibility:
 
 {{CONTEXT}}`,
       brd: `You are Morgan, a requirements-architect agent for this workspace. Operate as a senior business analyst specializing in digital sales and online funnel optimization for Spectrum.com, a digital subscription and services sales platform.

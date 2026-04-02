@@ -36,6 +36,7 @@ interface AppState {
   setAgentPrompts: (next: AgentPromptsState) => void
   patchAgentPrompts: (patch: {
     sage?: Partial<AgentPromptsState["sage"]>
+    scout?: Partial<AgentPromptsState["scout"]>
     generation?: Partial<AgentPromptsState["generation"]>
     quill?: string
   }) => void
@@ -101,9 +102,12 @@ export const useAppStore = create<AppState>()(
       patchAgentPrompts: (patch) =>
         set((s) => {
           const cur = s.agentPrompts
+          const scoutBase =
+            cur.scout ?? createDefaultAgentPrompts().scout
           return {
             agentPrompts: {
               sage: patch.sage ? { ...cur.sage, ...patch.sage } : cur.sage,
+              scout: patch.scout ? { ...scoutBase, ...patch.scout } : scoutBase,
               generation: patch.generation
                 ? { ...cur.generation, ...patch.generation }
                 : cur.generation,

@@ -11,8 +11,16 @@ export interface WorkbenchAgent {
 export const AGENT_SAGE: WorkbenchAgent = {
   id: "sage",
   name: "Sage",
-  role: "Discovery agent",
-  tagline: "Explores opportunities, friction, and hypotheses for digital sales.",
+  role: "Overview chat agent",
+  tagline: "Grounds Overview discovery chat in Spectrum.com digital sales context.",
+}
+
+/** Ideas tab — brainstorm and refine initiative ideas before the Brief. */
+export const AGENT_SCOUT: WorkbenchAgent = {
+  id: "scout",
+  name: "Scout",
+  role: "Ideas workspace agent",
+  tagline: "Explores solution paths, tightens initiative ideas, and compares trade-offs with the PM.",
 }
 
 export const AGENT_MORGAN: WorkbenchAgent = {

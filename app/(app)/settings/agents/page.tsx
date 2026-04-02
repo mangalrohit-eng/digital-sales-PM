@@ -18,7 +18,7 @@ import { ArrowLeft, RotateCcw, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import type { ArtifactType } from "@/lib/types"
 import { ARTIFACT_TYPE_LABELS } from "@/lib/types"
-import { getAgentForArtifactType } from "@/lib/agents"
+import { AGENT_SCOUT, getAgentForArtifactType } from "@/lib/agents"
 import { PROMPT_PLACEHOLDER_HELP } from "@/lib/agent-prompt-build"
 import { createDefaultAgentPrompts } from "@/lib/agent-prompt-defaults"
 
@@ -47,6 +47,12 @@ export default function AgentSettingsPage() {
     toast.success("Sage prompts reset")
   }
 
+  const resetScout = () => {
+    const d = createDefaultAgentPrompts()
+    patchAgentPrompts({ scout: d.scout })
+    toast.success("Scout prompts reset")
+  }
+
   const resetGeneration = (type: ArtifactType) => {
     const d = createDefaultAgentPrompts()
     patchAgentPrompts({ generation: { [type]: d.generation[type] } })
@@ -72,8 +78,8 @@ export default function AgentSettingsPage() {
         <h1 className="text-2xl font-bold tracking-tight">Agent prompts</h1>
         <p className="text-muted-foreground text-sm mt-1 max-w-2xl">
           Edit system and task instructions for each AI agent. Values are
-          saved in this browser and sent with every discovery, generation, and
-          refinement request.
+          saved in this browser and sent with Ideas chat, Brief generation, other
+          generation steps, and refinement requests.
         </p>
       </div>
 
@@ -88,6 +94,14 @@ export default function AgentSettingsPage() {
             {PROMPT_PLACEHOLDER_HELP.sage.system}{" "}
             <span className="text-foreground/80">
               {PROMPT_PLACEHOLDER_HELP.sage.contextWrap}
+            </span>
+            <br />
+            <strong className="text-foreground mt-2 inline-block">
+              {AGENT_SCOUT.name}:
+            </strong>{" "}
+            {PROMPT_PLACEHOLDER_HELP.scout.system}{" "}
+            <span className="text-foreground/80">
+              {PROMPT_PLACEHOLDER_HELP.scout.sessionContext}
             </span>
             <br />
             <strong className="text-foreground mt-2 inline-block">
@@ -114,12 +128,12 @@ export default function AgentSettingsPage() {
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <CardTitle className="text-base">Sage</CardTitle>
               <Badge variant="secondary" className="text-[10px]">
-                Discovery
+                Overview chat API
               </Badge>
             </div>
             <CardDescription className="text-xs">
-              System message and optional initiative wrapper for the discovery
-              chat.
+              System message and initiative wrapper for Overview-style chat when
+              using the streaming brainstorm API route.
             </CardDescription>
           </div>
           <Button
@@ -162,6 +176,66 @@ export default function AgentSettingsPage() {
                 })
               }
               className="min-h-[100px] font-mono text-xs leading-relaxed"
+              spellCheck={false}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <CardTitle className="text-base">{AGENT_SCOUT.name}</CardTitle>
+              <Badge variant="secondary" className="text-[10px]">
+                Ideas tab
+              </Badge>
+            </div>
+            <CardDescription className="text-xs">
+              System prompt plus session template for Ideas streaming chat
+              (<code className="text-[11px]">/api/ai/ideation-chat</code>).
+            </CardDescription>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="shrink-0 text-xs h-8"
+            onClick={resetScout}
+          >
+            Reset Scout
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="scout-system" className="text-xs font-medium">
+              System prompt
+            </Label>
+            <Textarea
+              id="scout-system"
+              value={agentPrompts.scout.systemPrompt}
+              onChange={(e) =>
+                patchAgentPrompts({
+                  scout: { systemPrompt: e.target.value },
+                })
+              }
+              className="min-h-[200px] font-mono text-xs leading-relaxed"
+              spellCheck={false}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="scout-session" className="text-xs font-medium">
+              Session context template
+            </Label>
+            <Textarea
+              id="scout-session"
+              value={agentPrompts.scout.sessionContextTemplate}
+              onChange={(e) =>
+                patchAgentPrompts({
+                  scout: { sessionContextTemplate: e.target.value },
+                })
+              }
+              className="min-h-[140px] font-mono text-xs leading-relaxed"
               spellCheck={false}
             />
           </div>

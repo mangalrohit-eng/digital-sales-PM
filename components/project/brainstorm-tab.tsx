@@ -17,7 +17,6 @@ import {
 } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import type { ChatMessage } from "@/lib/types"
-import { PROJECT_STATUS_LABELS } from "@/lib/types"
 import { AGENT_SAGE } from "@/lib/agents"
 import { toast } from "sonner"
 import { renderMarkdown } from "@/lib/markdown-html"
@@ -28,20 +27,23 @@ import {
   buildInitiativeBriefRefineDetail,
 } from "@/lib/workbench-agent-activity-builders"
 import {
+  aiClientErrorMessage,
   fetchInitiativeBriefStream,
   fetchRefineStream,
   settleBeforeArtifact,
 } from "@/lib/ai-stream-client"
+import { buildProjectContextForApi } from "@/lib/project-context-for-api"
 
 interface BrainstormTabProps {
   projectId: string
   projectName: string
   croContext: string
   userName: string
+  onNavigate?: (tab: string) => void
 }
 
-const DISCOVERY_DESCRIPTION =
-  "Generate a concise initiative brief from context. Refine it in chat, then finalize to the Artifacts library for BRD and downstream steps."
+const BRIEF_DESCRIPTION =
+  "Builds on your problem statement on Overview and the initiative idea you selected in Ideas. Generate a concise brief, refine it with Sage, then finalize to Artifacts for BRD and downstream steps."
 
 function WorkspaceChatRefinedAge({ iso }: { iso: string }) {
   const [label, setLabel] = useState(() => formatShortRelativePast(iso))
@@ -73,6 +75,7 @@ export function BrainstormTab({
   projectName,
   croContext,
   userName,
+  onNavigate,
 }: BrainstormTabProps) {
   const {
     begin: beginAgentBusy,
@@ -84,6 +87,11 @@ export function BrainstormTab({
 
   const project = getProject(projectId)
   const description = project?.description?.trim() ?? ""
+  const ideasCount = project?.ideation?.ideas?.length ?? 0
+  const showSelectIdeaHint =
+    Boolean(onNavigate) &&
+    ideasCount > 0 &&
+    !(project?.selectedIdeationId ?? null)
 
   const workspaceItems = useMemo(
     () =>
@@ -146,46 +154,10 @@ export function BrainstormTab({
     }
   }, [workspaceItems, selectedId])
 
-  const projectContextForApi = useMemo(() => {
-    const lines = [`Initiative: ${projectName.trim() || "(unnamed)"}`]
-    if (project) {
-      lines.push(`Status: ${PROJECT_STATUS_LABELS[project.status]}`)
-      const role = project.ownerRole?.trim()
-      lines.push(
-        role
-          ? `Owner: ${project.owner} (${role})`
-          : `Owner: ${project.owner}`
-      )
-    }
-    if (description) {
-      lines.push(`Description:\n${description}`)
-    } else {
-      lines.push(
-        "Description: (none on file—infer a working problem statement from the initiative name and product context; note assumptions under Open questions)"
-      )
-    }
-    if (croContext.trim()) {
-      lines.push(`Product / funnel context:\n${croContext.trim()}`)
-    } else {
-      lines.push(
-        "Product / funnel context: (none on file—infer typical Spectrum.com digital sales scope only where helpful; list confirmations under Open questions)"
-      )
-    }
-    const hist = project?.chatHistory?.filter((m) => m.content?.trim()) ?? []
-    if (hist.length > 0) {
-      const tail = hist.slice(-16)
-      lines.push(
-        `Prior initiative chat (most recent last):\n${tail
-          .map((m) =>
-            m.role === "user"
-              ? `PM: ${m.content.trim()}`
-              : `Assistant: ${m.content.trim()}`
-          )
-          .join("\n")}`
-      )
-    }
-    return lines.join("\n\n")
-  }, [projectName, description, croContext, project])
+  const projectContextForApi = useMemo(
+    () => buildProjectContextForApi(project, projectName, croContext),
+    [project, projectName, croContext]
+  )
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -277,9 +249,7 @@ export function BrainstormTab({
       setGenProgress(100)
       toast.success("Brief draft is ready — refine in chat, then finalize.")
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Initiative brief generation failed"
-      toast.error(msg)
+      toast.error(aiClientErrorMessage(err))
     } finally {
       clearInterval(tick)
       endAgentBusy()
@@ -345,7 +315,7 @@ export function BrainstormTab({
         workspaceChatRefinedAt: new Date().toISOString(),
       })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Update failed")
+      toast.error(aiClientErrorMessage(e))
     } finally {
       endAgentBusy()
       setRefining(false)
@@ -381,7 +351,9 @@ export function BrainstormTab({
   const generateButtonCompact = (
     <Button
       type="button"
-      onClick={() => void runGenerate()}
+      onClick={() =>
+        void runGenerate().catch((e) => toast.error(aiClientErrorMessage(e)))
+      }
       disabled={generating}
       size="sm"
       variant="outline"
@@ -405,7 +377,9 @@ export function BrainstormTab({
   const generateButtonEmpty = (
     <Button
       type="button"
-      onClick={() => void runGenerate()}
+      onClick={() =>
+        void runGenerate().catch((e) => toast.error(aiClientErrorMessage(e)))
+      }
       disabled={generating}
       className="h-10 gap-2 rounded-lg px-5 text-sm font-semibold shadow-sm"
     >
@@ -428,7 +402,7 @@ export function BrainstormTab({
       <div className="shrink-0 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold leading-tight">Discovery</h2>
+            <h2 className="text-lg font-semibold leading-tight">Brief</h2>
             <Badge
               variant="secondary"
               className="h-auto border-0 bg-primary/10 px-2 py-0 text-[10px] font-medium text-primary"
@@ -442,8 +416,26 @@ export function BrainstormTab({
           {hasAnyBriefArtifact ? generateButtonCompact : null}
         </div>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          {DISCOVERY_DESCRIPTION}
+          {BRIEF_DESCRIPTION}
         </p>
+        {showSelectIdeaHint ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/35 bg-amber-500/[0.08] px-3 py-2.5">
+            <p className="text-sm text-foreground/90">
+              Choose an initiative idea on{" "}
+              <span className="font-medium">Ideas</span> so the brief matches your
+              selected direction.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="h-8 shrink-0"
+              onClick={() => onNavigate?.("ideas")}
+            >
+              Open Ideas
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {generating && (
@@ -460,7 +452,8 @@ export function BrainstormTab({
           <MessageSquare className="mb-3 h-10 w-10 text-muted-foreground/40" />
           <p className="mb-1 font-medium">No initiative brief in this workspace</p>
           <p className="mb-6 max-w-md text-sm text-muted-foreground">
-            Run generate to create a draft from your initiative context. It stays
+            Run generate to create a draft from your problem statement, optional
+            additional thoughts, and selected initiative idea. It stays
             here until you finalize it to the Artifacts library.
           </p>
           {generateButtonEmpty}
@@ -526,7 +519,7 @@ export function BrainstormTab({
                       }`}
                     >
                       <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {m.role === "user" ? userName : "Assistant"}
+                        {m.role === "user" ? userName : AGENT_SAGE.name}
                       </p>
                       <p className="whitespace-pre-wrap leading-relaxed">
                         {m.content}
@@ -549,7 +542,9 @@ export function BrainstormTab({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault()
-                      void sendChat()
+                      void sendChat().catch((e) =>
+                        toast.error(aiClientErrorMessage(e))
+                      )
                     }
                   }}
                   placeholder="Describe edits… (Enter to send, Shift+Enter for line)"
@@ -567,7 +562,11 @@ export function BrainstormTab({
                     refining ||
                     selected?.published === true
                   }
-                  onClick={() => void sendChat()}
+                  onClick={() =>
+                    void sendChat().catch((e) =>
+                      toast.error(aiClientErrorMessage(e))
+                    )
+                  }
                 >
                   <Send className="h-4 w-4" />
                 </Button>

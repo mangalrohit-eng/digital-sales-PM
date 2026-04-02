@@ -23,7 +23,6 @@ import {
   Circle,
   Calendar,
   User,
-  Target,
   Edit3,
   LayoutTemplate,
   Info,
@@ -161,7 +160,6 @@ function BacklogArtifactCard({
 export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps) {
   const libraryArtifacts = artifacts.filter(isPublishedToLibrary)
   const { updateProject } = useAppStore()
-  const [editingContext, setEditingContext] = useState(false)
   const [contextValue, setContextValue] = useState(project.cro_context)
   const [editingDetails, setEditingDetails] = useState(false)
   const [nameValue, setNameValue] = useState(project.name)
@@ -203,12 +201,6 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
       ? 0
       : Math.round((approvedCount / libraryArtifacts.length) * 100)
 
-  const saveContext = () => {
-    updateProject(project.id, { cro_context: contextValue })
-    setEditingContext(false)
-    toast.success("Context updated")
-  }
-
   const saveDetails = () => {
     const name = nameValue.trim()
     if (!name) {
@@ -218,9 +210,10 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
     updateProject(project.id, {
       name,
       description: descriptionValue.trim(),
+      cro_context: contextValue.trim(),
     })
     setEditingDetails(false)
-    toast.success("Initiative details updated")
+    toast.success("Initiative updated")
   }
 
   const onStatusChange = (next: ProjectStatus) => {
@@ -283,15 +276,39 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
           <span className="font-medium text-foreground/90">
             How this workspace works:
           </span>{" "}
-          The initiative brief and BRD through Layouts keep{" "}
-          <span className="text-foreground/80 font-medium">drafts</span> until
-          you <span className="text-foreground/80 font-medium">finalize</span>{" "}
+          Start with{" "}
+          <span className="text-foreground/80 font-medium">Ideas</span> for a
+          web-grounded industry readout and solution paths, then{" "}
+          <span className="text-foreground/80 font-medium">Brief</span> to
+          shape the initiative brief in chat. The brief and BRD through Layouts
+          keep <span className="text-foreground/80 font-medium">drafts</span>{" "}
+          until you <span className="text-foreground/80 font-medium">finalize</span>{" "}
           them.{" "}
           <span className="text-foreground/80 font-medium">Artifacts</span> is
-          your shared library for review and export. Use{" "}
-          <span className="text-foreground/80 font-medium">Discovery</span> when
-          you are ready to explore the problem with chat.
+          your shared library for review and export.
         </p>
+        {onNavigate && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => onNavigate("ideas")}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Open Ideas
+            </Button>
+            {(project.ideation?.ideas?.length ||
+              project.ideationReadout?.trim()) &&
+              project.ideationUpdatedAt && (
+              <span className="text-[11px] text-muted-foreground">
+                Ideas workspace saved — updated{" "}
+                {formatDistanceToNow(project.ideationUpdatedAt)}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Initiative details */}
@@ -341,20 +358,37 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="init-desc" className="text-xs">
-                  Description
+                <Label htmlFor="init-problem" className="text-xs">
+                  Problem Statement
                 </Label>
                 <Textarea
-                  id="init-desc"
+                  id="init-problem"
                   value={descriptionValue}
                   onChange={(e) => setDescriptionValue(e.target.value)}
                   rows={3}
                   className="text-sm resize-none"
+                  placeholder="e.g. Reduce cart abandonment on mobile checkout"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="init-thoughts" className="text-xs">
+                  Additional thoughts{" "}
+                  <span className="font-normal text-muted-foreground">
+                    (optional)
+                  </span>
+                </Label>
+                <Textarea
+                  id="init-thoughts"
+                  value={contextValue}
+                  onChange={(e) => setContextValue(e.target.value)}
+                  rows={4}
+                  className="text-sm resize-none"
+                  placeholder="Constraints, KPIs, audience—context for Scout, Sage, and your team…"
                 />
               </div>
               <div className="flex gap-2">
                 <Button size="sm" className="h-8 text-xs" onClick={saveDetails}>
-                  Save details
+                  Save
                 </Button>
                 <Button
                   size="sm"
@@ -363,6 +397,7 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
                   onClick={() => {
                     setNameValue(project.name)
                     setDescriptionValue(project.description)
+                    setContextValue(project.cro_context)
                     setEditingDetails(false)
                   }}
                 >
@@ -384,15 +419,37 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
                   Edit
                 </Button>
               </div>
-              {project.description ? (
-                <p className="text-muted-foreground mt-1 text-sm max-w-2xl leading-relaxed">
-                  {project.description}
-                </p>
-              ) : (
-                <p className="text-muted-foreground mt-1 text-sm italic">
-                  No description. Use Edit to add one.
-                </p>
-              )}
+              <div className="mt-3 max-w-2xl space-y-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Problem Statement
+                  </p>
+                  {project.description ? (
+                    <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                      {project.description}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground mt-1 text-sm italic">
+                      Not set yet. Use Edit to describe the outcome you are
+                      driving toward.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Additional thoughts
+                  </p>
+                  {project.cro_context ? (
+                    <p className="text-muted-foreground mt-1 text-sm whitespace-pre-wrap leading-relaxed">
+                      {project.cro_context}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground mt-1 text-sm italic">
+                      Optional — add constraints, KPIs, or context when helpful.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -479,11 +536,12 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
         <div className="space-y-8">
           <div>
             <p className="text-sm font-semibold text-foreground mb-1">
-              Discovery &amp; backlog
+              Brief &amp; backlog
             </p>
             <p className="text-xs text-muted-foreground">
-              Finalize the initiative brief from Discovery; other drafts stay in
-              workspace until you finalize. Library items appear in Artifacts.
+              Finalize the initiative brief from the Brief tab; other drafts stay
+              in workspace until you finalize. Library items appear in
+              Artifacts.
             </p>
           </div>
 
@@ -585,64 +643,6 @@ export function OverviewTab({ project, artifacts, onNavigate }: OverviewTabProps
         </div>
       )}
 
-      {/* Digital Sales initiative context */}
-      <Card>
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-primary" />
-              <p className="text-sm font-semibold">Initiative context</p>
-            </div>
-            {!editingContext && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 text-xs"
-                onClick={() => setEditingContext(true)}
-              >
-                <Edit3 className="w-3 h-3" />
-                Edit
-              </Button>
-            )}
-          </div>
-          {editingContext ? (
-            <div className="space-y-2">
-              <Textarea
-                value={contextValue}
-                onChange={(e) => setContextValue(e.target.value)}
-                rows={5}
-                className="text-sm resize-none"
-                placeholder="Goals, audience, funnel, KPIs, constraints, and anything else teams should align on…"
-              />
-              <div className="flex gap-2">
-                <Button size="sm" className="h-8 text-xs" onClick={saveContext}>
-                  Save
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs"
-                  onClick={() => {
-                    setContextValue(project.cro_context)
-                    setEditingContext(false)
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-              {project.cro_context || (
-                <span className="italic">
-                  No context yet. Adding goals and constraints here improves
-                  discovery and generated artifacts.
-                </span>
-              )}
-            </p>
-          )}
-        </CardContent>
-      </Card>
         </div>
       </div>
     </div>

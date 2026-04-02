@@ -6,6 +6,7 @@ import { useAppStore } from "@/lib/store"
 import { useSession } from "next-auth/react"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { OverviewTab } from "@/components/project/overview-tab"
+import { IdeationTab } from "@/components/project/ideation-tab"
 import { BrainstormTab } from "@/components/project/brainstorm-tab"
 import { AgentWorkspaceTab } from "@/components/project/agent-workspace-tab"
 import { ArtifactsTab } from "@/components/project/artifacts-tab"
@@ -14,6 +15,7 @@ import { WORKSPACE_AGENT_STEPS } from "@/lib/workspace-generation"
 import { isPublishedToLibrary } from "@/lib/artifact-published"
 import {
   LayoutDashboard,
+  Lightbulb,
   MessageSquare,
   FileStack,
   Share2,
@@ -23,7 +25,7 @@ import { WorkbenchFloatingNav } from "@/components/project/workbench-floating-na
 import { WorkbenchAgentThinking } from "@/components/project/workbench-agent-thinking"
 import { WorkbenchAgentBusyProvider } from "@/components/project/workbench-agent-busy-context"
 
-const CORE_TABS = ["overview", "brainstorm"] as const
+const CORE_TABS = ["overview", "ideas", "brief"] as const
 const TAIL_TABS = ["artifacts", "export"] as const
 const AGENT_TAB_VALUES = WORKSPACE_AGENT_STEPS.map((s) => s.tab)
 const TAB_VALUES = [
@@ -40,6 +42,8 @@ function isTabValue(v: string | null): v is TabValue {
 function normalizeTabParam(v: string | null): string | null {
   if (v === "jira") return "export"
   if (v === "generate") return "agent-brd"
+  if (v === "ideation") return "ideas"
+  if (v === "brainstorm") return "brief"
   return v
 }
 
@@ -132,11 +136,18 @@ export default function ProjectPage({ params }: PageProps) {
       step: null as number | null,
     },
     {
-      value: "brainstorm" as const,
-      label: "Discovery",
+      value: "ideas" as const,
+      label: "Ideas",
+      icon: Lightbulb,
+      badge: null as string | null,
+      step: 1,
+    },
+    {
+      value: "brief" as const,
+      label: "Brief",
       icon: MessageSquare,
       badge: draftBriefCount > 0 ? String(draftBriefCount) : null,
-      step: 1,
+      step: 2,
     },
     ...WORKSPACE_AGENT_STEPS.map((s) => ({
       value: s.tab as TabValue,
@@ -153,7 +164,7 @@ export default function ProjectPage({ params }: PageProps) {
       label: "Artifacts",
       icon: FileStack,
       badge: totalCount > 0 ? String(totalCount) : null,
-      step: 2,
+      step: 3,
     },
     {
       value: "export" as const,
@@ -175,7 +186,11 @@ export default function ProjectPage({ params }: PageProps) {
           onValueChange={setTab}
           className="workbench-tabs flex min-h-0 flex-1 flex-col"
         >
-          <WorkbenchFloatingNav projectName={project.name} tabs={tabs} />
+          <WorkbenchFloatingNav
+            projectName={project.name}
+            tabs={tabs}
+            activeTab={activeTab}
+          />
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-[6.875rem] sm:pt-[8.125rem]">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -187,12 +202,23 @@ export default function ProjectPage({ params }: PageProps) {
                 />
               </TabsContent>
 
-              <TabsContent value="brainstorm" className={tabPanelClass}>
+              <TabsContent value="ideas" className={tabPanelClass}>
+                <IdeationTab
+                  projectId={id}
+                  projectName={project.name}
+                  croContext={project.cro_context}
+                  userName={user?.name ?? "User"}
+                  onNavigate={setTab}
+                />
+              </TabsContent>
+
+              <TabsContent value="brief" className={tabPanelClass}>
                 <BrainstormTab
                   projectId={id}
                   projectName={project.name}
                   croContext={project.cro_context}
                   userName={user?.name ?? "User"}
+                  onNavigate={setTab}
                 />
               </TabsContent>
 

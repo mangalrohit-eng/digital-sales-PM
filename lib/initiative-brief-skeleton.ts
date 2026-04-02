@@ -3,20 +3,20 @@ export function skeletonBriefFromContext(
   projectContext: string,
   transcript: string
 ): string {
-  const ctx = projectContext.trim() || "_No initiative description or context yet._"
+  const ctx = projectContext.trim() || "_No problem statement or additional thoughts yet._"
   const chatEmpty = !transcript.trim()
   const note = chatEmpty
-    ? "Expand Overview description or product context, or add Discovery chat notes, then regenerate."
-    : "The model returned no text; try again or add a short note in Discovery chat and regenerate."
+    ? "Expand Overview (problem statement or additional thoughts), or add Brief tab chat notes, then regenerate."
+    : "The model returned no text; try again or add a short note in Brief chat and regenerate."
 
   const initiativeLine =
     ctx.match(/^Initiative:\s*(.+)$/m)?.[1]?.trim() || "this initiative"
 
   return `## Problem / outcome
-- Shape and validate the problem statement for **${initiativeLine}** using Overview context; ${note}
+- Shape and validate the problem statement for **${initiativeLine}** using Overview; ${note}
 
 ## Audience & context
-- Internal owner and status are in the initiative context below.
+- Internal owner and status are in the project context below.
 ${ctx.slice(0, 1400)}${ctx.length > 1400 ? "\n\n_(context truncated)_" : ""}
 
 ## Success signals

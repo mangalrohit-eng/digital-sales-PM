@@ -7,6 +7,7 @@ import {
   BrainCircuit,
   Cloud,
   Database,
+  Globe,
   FileText,
   Inbox,
   Kanban,
@@ -27,6 +28,7 @@ import {
 
 const SOURCE_ICON: Record<string, LucideIcon> = {
   openai: Cloud,
+  "web-search": Globe,
   prompts: SlidersHorizontal,
   initiative: Target,
   brief: FileText,

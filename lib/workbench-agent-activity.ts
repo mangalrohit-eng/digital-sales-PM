@@ -13,6 +13,9 @@ export type WorkbenchAgentActivityKind =
   | "generate_screen_layout"
   | "refine_screen_layout"
   | "refine_library_artifact"
+  | "generate_ideation"
+  | "ideation_chat"
+  | "ideation_merge_workspace"
   | "generic"
 
 /** Honest label for data the model can see (no fake integrations). */
@@ -54,5 +57,8 @@ export const ACTIVITY_HEADLINE: Record<WorkbenchAgentActivityKind, string> = {
   generate_screen_layout: "Generating screen layouts",
   refine_screen_layout: "Refining layouts",
   refine_library_artifact: "Refining artifact",
+  generate_ideation: "Researching ideas (web)",
+  ideation_chat: "Ideas chat (Scout)",
+  ideation_merge_workspace: "Updating directions from chat",
   generic: "AI request",
 }

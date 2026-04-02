@@ -147,7 +147,7 @@ export async function runAgentGeneration(
     const brief =
       briefArtifact?.content?.trim() || project?.initiativeBrief?.trim()
     const briefBlock = brief
-      ? `Initiative brief (from Discovery — align the BRD with this):\n${brief}`
+      ? `Initiative brief (from Brief tab — align the BRD with this):\n${brief}`
       : ""
     const tail =
       croContext?.trim() ||

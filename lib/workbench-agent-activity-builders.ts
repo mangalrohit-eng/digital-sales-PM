@@ -19,6 +19,70 @@ const PROMPTS: WorkbenchAgentSourceTag = {
   label: "Agent prompts (Settings)",
 }
 
+export function buildIdeationGenerateDetail(opts: {
+  projectName: string
+  description: string
+  croContext: string
+  contextBlockChars: number
+}): WorkbenchAgentActivityDetail {
+  return {
+    kind: "generate_ideation",
+    contextLines: [
+      "API: POST /api/ai/ideation (OpenAI Responses + web search)",
+      `Initiative: ${opts.projectName.trim() || "(unnamed)"}`,
+      opts.description.trim()
+        ? `Problem Statement: ${trunc(opts.description, 140)}`
+        : "Problem Statement: (none — model infers from name/additional thoughts)",
+      opts.croContext.trim()
+        ? `Additional thoughts: ${trunc(opts.croContext, 120)}`
+        : "Additional thoughts: (none)",
+      `Project context block size: ${opts.contextBlockChars.toLocaleString()} characters`,
+    ],
+    sources: [
+      { id: "initiative", label: "Initiative fields" },
+      { id: "web-search", label: "Web search (OpenAI)" },
+      OPENAI,
+    ],
+  }
+}
+
+export function buildIdeationChatDetail(opts: {
+  turns: number
+  digestChars: number
+}): WorkbenchAgentActivityDetail {
+  return {
+    kind: "ideation_chat",
+    contextLines: [
+      "API: POST /api/ai/ideation-chat (stream)",
+      `Ideas tab chat turns in request: ${opts.turns}`,
+      `Directions digest size: ${opts.digestChars.toLocaleString()} characters`,
+    ],
+    sources: [
+      { id: "initiative", label: "Initiative context" },
+      PROMPTS,
+      OPENAI,
+    ],
+  }
+}
+
+export function buildIdeationMergeDetail(opts: {
+  ideaCount: number
+  chatTurns: number
+}): WorkbenchAgentActivityDetail {
+  return {
+    kind: "ideation_merge_workspace",
+    contextLines: [
+      "API: POST /api/ai/ideation-merge",
+      `Current workspace directions: ${opts.ideaCount}`,
+      `Ideas tab chat turns: ${opts.chatTurns}`,
+    ],
+    sources: [
+      { id: "initiative", label: "Initiative context + workspace JSON" },
+      OPENAI,
+    ],
+  }
+}
+
 export function buildInitiativeBriefGenerateDetail(opts: {
   projectName: string
   description: string
@@ -31,12 +95,12 @@ export function buildInitiativeBriefGenerateDetail(opts: {
       "API: POST /api/ai/initiative-brief",
       `Initiative: ${opts.projectName.trim() || "(unnamed)"}`,
       opts.description.trim()
-        ? `Description: ${trunc(opts.description, 140)}`
-        : "Description: (none — brief infers from name/context; assumptions in Open questions)",
+        ? `Problem Statement: ${trunc(opts.description, 140)}`
+        : "Problem Statement: (none — brief infers from name/additional thoughts; assumptions in Open questions)",
       opts.croContext.trim()
-        ? `Product / funnel context: ${trunc(opts.croContext, 120)}`
-        : "Product / funnel context: (none — conservative digital-sales assumptions if needed)",
-      "Discovery workspace chat in payload: 0 (Overview + initiative fields are ground truth)",
+        ? `Additional thoughts: ${trunc(opts.croContext, 120)}`
+        : "Additional thoughts: (none — conservative digital-sales assumptions if needed)",
+      "Brief workspace chat in payload: 0 (Overview + initiative fields are ground truth)",
       `Project context block size: ${opts.contextBlockChars.toLocaleString()} characters`,
     ],
     sources: [

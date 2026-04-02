@@ -19,7 +19,7 @@ import {
 
 const whatWorks = [
   "Program dashboard, initiatives list, and per-initiative workbench (discovery through export).",
-  "Guided flows for brainstorming, requirements, artifacts, and packaging outputs.",
+  "Guided flows for Ideas, Brief, requirements, artifacts, and export.",
   "AI-assisted drafting and refinement when an API key is configured in Settings (optional).",
   "Simulated “push to Jira” for demo storytelling—tickets are generated locally, not in a live Jira project.",
   "Configurable agent prompts under Settings for workshop-style customization.",

@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -18,6 +19,7 @@ import {
   Sparkles,
   MoreHorizontal,
   LogOut,
+  BookOpen,
 } from "lucide-react"
 
 export function WorkbenchOverflowMenu() {
@@ -31,11 +33,12 @@ export function WorkbenchOverflowMenu() {
           buttonVariants({ variant: "outline", size: "icon" }),
           "h-9 w-9 shrink-0 border-border/80 bg-background"
         )}
-        aria-label="App menu: dashboard, initiatives, settings, sign out"
+        aria-label="Menu: go to, settings, demo overview, sign out"
       >
         <MoreHorizontal className="h-4 w-4" strokeWidth={2} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Go to</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => router.push("/dashboard")}>
           <LayoutDashboard className="size-4 opacity-70" />
           Dashboard
@@ -44,7 +47,12 @@ export function WorkbenchOverflowMenu() {
           <FolderKanban className="size-4 opacity-70" />
           All initiatives
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push("/welcome")}>
+          <BookOpen className="size-4 opacity-70" />
+          Demo overview
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuLabel>Configure</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => router.push("/settings")}>
           <Settings className="size-4 opacity-70" />
           Settings

@@ -19,9 +19,15 @@ export interface WorkbenchStageTab {
 interface WorkbenchFloatingNavProps {
   projectName: string
   tabs: WorkbenchStageTab[]
+  activeTab: string
 }
 
-export function WorkbenchFloatingNav({ projectName, tabs }: WorkbenchFloatingNavProps) {
+export function WorkbenchFloatingNav({
+  projectName,
+  tabs,
+  activeTab,
+}: WorkbenchFloatingNavProps) {
+  const activeLabel = tabs.find((t) => t.value === activeTab)?.label ?? ""
   return (
     <div
       className="fixed inset-x-0 top-0 z-50 pointer-events-none pt-[max(0.5rem,env(safe-area-inset-top))] px-2 pb-1 sm:px-3"
@@ -39,12 +45,22 @@ export function WorkbenchFloatingNav({ projectName, tabs }: WorkbenchFloatingNav
               <ChevronLeft className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
               <span className="max-[380px]:hidden">Initiatives</span>
             </Link>
-            <span
-              className="min-w-0 truncate text-left text-[12px] font-semibold leading-tight text-foreground sm:text-[13px]"
-              title={projectName}
-            >
-              {projectName}
-            </span>
+            <div className="min-w-0 flex-1">
+              <span
+                className="block truncate text-left text-[12px] font-semibold leading-tight text-foreground sm:text-[13px]"
+                title={projectName}
+              >
+                {projectName}
+              </span>
+              {activeLabel ? (
+                <span
+                  className="mt-0.5 block truncate text-left text-[10px] font-medium text-muted-foreground sm:text-[11px]"
+                  aria-current="location"
+                >
+                  {activeLabel}
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex shrink-0 items-center justify-end gap-1.5">

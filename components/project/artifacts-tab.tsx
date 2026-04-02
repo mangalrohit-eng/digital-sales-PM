@@ -40,7 +40,11 @@ import { ConfirmDialog } from "@/components/confirm-dialog"
 import { isPublishedToLibrary } from "@/lib/artifact-published"
 import { renderMarkdown } from "@/lib/markdown-html"
 import { useWorkbenchAgentBusy } from "@/components/project/workbench-agent-busy-context"
-import { fetchRefineStream, settleBeforeArtifact } from "@/lib/ai-stream-client"
+import {
+  aiClientErrorMessage,
+  fetchRefineStream,
+  settleBeforeArtifact,
+} from "@/lib/ai-stream-client"
 import { buildLibraryRefineDetail } from "@/lib/workbench-agent-activity-builders"
 
 const TYPE_ICONS: Record<ArtifactType, React.ElementType> = {
@@ -258,7 +262,7 @@ function ArtifactDetail({
       setRefineFeedback("")
       toast.success("Artifact updated from your feedback")
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Refinement failed")
+      toast.error(aiClientErrorMessage(e))
     } finally {
       endAgentBusy()
       setRefining(false)
@@ -399,7 +403,11 @@ function ArtifactDetail({
                   type="button"
                   size="sm"
                   className="gap-1.5 h-8 text-xs"
-                  onClick={handleRefine}
+                  onClick={() =>
+                    void handleRefine().catch((e) =>
+                      toast.error(aiClientErrorMessage(e))
+                    )
+                  }
                   disabled={refining || !refineFeedback.trim()}
                 >
                   {refining ? (
@@ -572,9 +580,8 @@ export function ArtifactsTab({
           <FileText className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
           <h3 className="font-semibold mb-1">No finalized artifacts yet</h3>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            Finalize your initiative brief from Discovery, then generate drafts in
-            the BRD, Epics, Stories, Tests, or Layouts workspace tabs, refine them
-            in chat, then use{" "}
+            Finalize your initiative brief from the <strong className="font-medium text-foreground">Brief</strong> tab, then generate drafts in
+            the BRD, Epics, Stories, Tests, or Layouts tabs, refine in chat, and use{" "}
             <strong className="font-medium text-foreground">Finalize to library</strong>{" "}
             to add them here.
           </p>

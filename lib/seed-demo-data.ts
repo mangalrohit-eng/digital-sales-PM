@@ -13,6 +13,96 @@ export const SEED_PROJECT: Project = {
     "Streamline guest checkout, reduce abandonment, and align UX with mobile-first journeys.",
   cro_context:
     "Primary KPI: +2.5% checkout completion within 90 days. Focus on address verification, payment trust signals, and one-page vs multi-step test. Audience: new internet shoppers on mobile Safari and Chrome.",
+  ideation: {
+    problemRestatement:
+      "Mobile shoppers abandon checkout before payment; we need clearer pricing and fewer friction points earlier in the funnel.",
+    landscapeMarkdown: `## Competitive & category patterns
+
+- **All-in pricing:** Retail and subscription leaders surface tax, fees, and shipping (or install) subtotals before the pay step.
+- **Progressive disclosure:** Totals split into expandable line items beat a single opaque number at the end.
+- **Trust at pay:** Security badges, return/policy links, and card-network marks near the card step align with published checkout UX research.
+
+## Best practices
+
+- Sticky order summary on mobile scroll.
+- Guest path with minimal fields; defer account creation.
+- Inline address validation with suggestions to reduce retries.`,
+    ideas: [
+      {
+        id: "seed-idea-pricing",
+        title: "Pricing transparency earlier",
+        tagline:
+          "Show recurring, one-time, and estimated tax before address entry.",
+        detailMarkdown: `### Scope
+- Plan selection through cart: always-visible **estimated monthly** and **first bill** breakdown.
+- Expandable drawer for fee definitions (broadcast TV fee, equipment, install).
+
+### Bets
+- Fewer drop-offs at “surprise total” moments.
+- Support volume down for “why is my bill this?” tickets.
+
+### Dependencies
+Pricing engine accuracy, legal copy for disclaimers.`,
+        researchBasis:
+          "Matches common e-commerce and telecom disclosure patterns from public UX write-ups and checkout guidelines.",
+      },
+      {
+        id: "seed-idea-sticky",
+        title: "Sticky summary & trust row",
+        tagline: "Keep totals visible while scrolling; strengthen pay-step trust.",
+        detailMarkdown: `### Scope
+- Sticky mini-cart with line items + total on mobile checkout screens.
+- Trust row: SSL, card logos, “secure checkout”, link to privacy.
+
+### Bets
+- Reduces anxiety on long mobile forms.
+- Improves perceived security at payment.
+
+### Dependencies
+Design system components, analytics on sticky engagement.`,
+        researchBasis:
+          "Benchmarked against common mobile checkout patterns documented in industry UX roundups.",
+      },
+      {
+        id: "seed-idea-address",
+        title: "Address verification UX",
+        tagline: "Fewer retries with smart suggestions and clearer errors.",
+        detailMarkdown: `### Scope
+- Serviceability-aware address capture with autocomplete and correction prompts.
+- Clear error states when an address cannot be served.
+
+### Bets
+- Less abandonment at address step.
+- Fewer failed orders downstream.
+
+### Dependencies
+Address / serviceability data quality, API latency.`,
+        researchBasis:
+          "Tied to broadband and delivery flows where address validation is a known friction point.",
+      },
+      {
+        id: "seed-idea-flow",
+        title: "Flow simplification (guest-first)",
+        tagline: "Shortest path to pay; defer non-critical data.",
+        detailMarkdown: `### Scope
+- Guest checkout default; optional account after success.
+- Collapse steps where possible; progressive profiling post-order.
+
+### Bets
+- Higher completion for first-time mobile buyers.
+- Trade-off: less data upfront for marketing.
+
+### Dependencies
+Order management, identity merge if account created later.`,
+        researchBasis:
+          "Aligns with guest-first patterns used by high-conversion retail checkouts.",
+      },
+    ],
+    sourcesMarkdown:
+      "- Illustrative demo seed — run **Ideas** with your OpenAI key for live web-backed sources.\n- Public UX and e-commerce checkout guideline summaries.",
+  },
+  selectedIdeationId: "seed-idea-pricing",
+  ideationUpdatedAt: "2025-02-12T11:00:00.000Z",
   owner: "Alex M",
   ownerRole: "analyst",
   createdAt: created,

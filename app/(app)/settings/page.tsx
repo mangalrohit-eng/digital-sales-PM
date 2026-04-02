@@ -99,7 +99,7 @@ export default function SettingsPage() {
                 Agent prompts
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                System and task templates for Sage, generation agents, and Quill
+                Scout (Ideas), Sage (Overview chat), generation agents, and Quill
               </p>
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
@@ -117,7 +117,7 @@ export default function SettingsPage() {
             <div>
               <CardTitle className="text-base">OpenAI API Key</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Required for AI-assisted discovery, generation, and editing
+                Required for AI across Ideas, Brief, generation, and editing
               </CardDescription>
             </div>
           </div>
@@ -272,7 +272,7 @@ export default function SettingsPage() {
                 login: "analyst",
                 role: "Analyst",
                 title: "Digital Sales Analyst",
-                capabilities: ["Discovery", "Generation", "Submit for review"],
+                capabilities: ["Workbench", "Generation", "Submit for review"],
               },
             ].map((account) => (
               <div
